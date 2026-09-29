@@ -1,0 +1,2 @@
+# API Python dan client desktop yang diuji bersama; tanpa CLI/web tambahan.
+flet[desktop]==1.0.2
