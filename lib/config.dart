@@ -19,11 +19,6 @@ abstract final class AppConfig {
     'SUPABASE_MOBILE_REDIRECT_URL',
     defaultValue: 'id.qpark.qpark://login-callback/',
   );
-  static const supabaseWebRedirectUrl = String.fromEnvironment(
-    'SUPABASE_WEB_REDIRECT_URL',
-    defaultValue: 'https://q-park-final.vercel.app',
-  );
-
   static bool get supabaseConfigured =>
       supabaseUrl.isNotEmpty && supabasePublishableKey.isNotEmpty;
 

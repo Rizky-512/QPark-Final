@@ -82,6 +82,8 @@ python -m unittest discover -s server/tests -v
 python scripts/build_release.py
 ```
 
+Pada Windows, `jalankan_web.bat`, `jalankan_android.bat`, dan `buka_web.bat` otomatis mencari Flutter di PATH, `FLUTTER_ROOT`, lalu `%USERPROFILE%\development\flutter`. Jadi instalasi standar pada `C:\Users\NAMA\development\flutter` tidak perlu ditambahkan ke PATH terlebih dahulu.
+
 Untuk mengaktifkan Supabase, salin `dart_defines.example.json` menjadi `dart_defines.json`, isi URL dan publishable key, lalu tambahkan `--dart-define-from-file=dart_defines.json` pada perintah run/build. Konfigurasi Google Cloud, redirect URL, skema database, dan checklist produksi dijelaskan di [docs/SUPABASE_MIGRASI.md](docs/SUPABASE_MIGRASI.md).
 
 Backend menggunakan pustaka standar Python dan SQLite. Build web menyalin renderer, font lokal, dan pustaka pemindai QR. File tema `lib/ui/common.dart` tidak berubah.

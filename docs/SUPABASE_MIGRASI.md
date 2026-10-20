@@ -43,14 +43,13 @@ where id = 'UUID_PENGGUNA';
 
 4. Di Supabase Dashboard buka **Authentication -> Providers -> Google**, aktifkan provider, lalu isi Client ID dan Client Secret dari Google.
 5. Di **Authentication -> URL Configuration**:
-   - isi Site URL dengan URL web produksi;
-   - tambahkan URL development/production web yang dipakai;
+   - untuk tahap lokal, isi Site URL dengan `http://localhost:7357`;
+   - tambahkan redirect URL `http://localhost:7357/**`;
    - tambahkan `id.qpark.qpark://login-callback/` untuk Android dan iOS.
 
-Untuk deployment proyek ini, URL produksi web adalah
-`https://q-park-final.vercel.app`. Daftarkan URL tersebut di Google sebagai
-Authorized JavaScript origin dan di Supabase sebagai Site URL serta redirect
-URL `https://q-park-final.vercel.app/**`.
+Domain produksi baru ditambahkan dan dijadikan Site URL setelah alur lokal sudah
+berhasil diuji. Selama tahap ini Google Authorized JavaScript origin cukup
+`http://localhost:7357`.
 
 Android dan iOS di repository ini sudah memiliki deklarasi deep-link untuk callback tersebut. Bila application ID/bundle ID diubah, ubah scheme pada `AndroidManifest.xml`, `Info.plist`, dan `SUPABASE_MOBILE_REDIRECT_URL` secara bersamaan.
 
@@ -64,15 +63,14 @@ Salin `dart_defines.example.json` menjadi `dart_defines.json` (file tujuan sudah
   "QPARK_SIMULATION": "true",
   "SUPABASE_URL": "https://PROJECT_REF.supabase.co",
   "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_...",
-  "SUPABASE_WEB_REDIRECT_URL": "https://q-park-final.vercel.app",
   "SUPABASE_MOBILE_REDIRECT_URL": "id.qpark.qpark://login-callback/"
 }
 ```
 
-Jalankan web:
+Jalankan web di Windows (launcher otomatis membaca `dart_defines.json`):
 
-```sh
-flutter run -d chrome --dart-define-from-file=dart_defines.json
+```bat
+jalankan_web.bat
 ```
 
 Build Android:

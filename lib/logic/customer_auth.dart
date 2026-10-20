@@ -34,14 +34,10 @@ class PendingSupabaseAuth implements CustomerAuthProvider {
 }
 
 class SupabaseCustomerAuth implements CustomerAuthProvider {
-  const SupabaseCustomerAuth(
-    this.client, {
-    required this.mobileRedirectUrl,
-    required this.webRedirectUrl,
-  });
+  const SupabaseCustomerAuth(this.client, this.mobileRedirectUrl);
 
   final SupabaseClient client;
-  final String mobileRedirectUrl, webRedirectUrl;
+  final String mobileRedirectUrl;
 
   CustomerIdentity? _identity(User? user) {
     if (user == null) return null;
@@ -69,7 +65,7 @@ class SupabaseCustomerAuth implements CustomerAuthProvider {
     try {
       await client.auth.signInWithOAuth(
         OAuthProvider.google,
-        redirectTo: kIsWeb ? webRedirectUrl : mobileRedirectUrl,
+        redirectTo: kIsWeb ? null : mobileRedirectUrl,
         authScreenLaunchMode: kIsWeb
             ? LaunchMode.platformDefault
             : LaunchMode.externalApplication,
