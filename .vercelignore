@@ -1,2 +1,4 @@
-# Legacy Python prototype; production Vercel deploy serves rilis/web only.
-QPark/
+# Python sources are not part of the static Vercel deployment.
+/QPark/
+/server/
+/scripts/
