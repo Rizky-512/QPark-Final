@@ -3,5 +3,6 @@
   "QPARK_SIMULATION": "true",
   "SUPABASE_URL": "https://PROJECT_REF.supabase.co",
   "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_REPLACE_ME",
+  "SUPABASE_WEB_REDIRECT_URL": "https://q-park-final.vercel.app",
   "SUPABASE_MOBILE_REDIRECT_URL": "id.qpark.qpark://login-callback/"
 }

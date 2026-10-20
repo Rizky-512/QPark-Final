@@ -23,7 +23,8 @@ Future<RemoteService> bootstrap() async {
     preferences,
     customerAuth: SupabaseCustomerAuth(
       client,
-      AppConfig.supabaseMobileRedirectUrl,
+      mobileRedirectUrl: AppConfig.supabaseMobileRedirectUrl,
+      webRedirectUrl: AppConfig.supabaseWebRedirectUrl,
     ),
     customerData: SupabaseCustomerRepository(client),
   );

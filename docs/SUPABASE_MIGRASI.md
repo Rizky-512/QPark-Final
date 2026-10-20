@@ -47,6 +47,11 @@ where id = 'UUID_PENGGUNA';
    - tambahkan URL development/production web yang dipakai;
    - tambahkan `id.qpark.qpark://login-callback/` untuk Android dan iOS.
 
+Untuk deployment proyek ini, URL produksi web adalah
+`https://q-park-final.vercel.app`. Daftarkan URL tersebut di Google sebagai
+Authorized JavaScript origin dan di Supabase sebagai Site URL serta redirect
+URL `https://q-park-final.vercel.app/**`.
+
 Android dan iOS di repository ini sudah memiliki deklarasi deep-link untuk callback tersebut. Bila application ID/bundle ID diubah, ubah scheme pada `AndroidManifest.xml`, `Info.plist`, dan `SUPABASE_MOBILE_REDIRECT_URL` secara bersamaan.
 
 ## 3. Menyuntikkan konfigurasi build
@@ -59,6 +64,7 @@ Salin `dart_defines.example.json` menjadi `dart_defines.json` (file tujuan sudah
   "QPARK_SIMULATION": "true",
   "SUPABASE_URL": "https://PROJECT_REF.supabase.co",
   "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_...",
+  "SUPABASE_WEB_REDIRECT_URL": "https://q-park-final.vercel.app",
   "SUPABASE_MOBILE_REDIRECT_URL": "id.qpark.qpark://login-callback/"
 }
 ```
