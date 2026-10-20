@@ -1,6 +1,6 @@
 {
   "lib/bootstrap.dart": "aabb7aa280837ac746484a4edebd24c4adb9ae036066566a472244469648562b",
-  "lib/config.dart": "b9eab8908652ab813f414652554ee42628542c3062d3e6bb6bdb896318fd6b74",
+  "lib/config.dart": "5cf24236fac53b239ac43ebf404fc9749e6fdb1fd9e79c3bba62830b3bd7dbcf",
   "lib/main.dart": "6e0b16c48e135e9fee647e6f06821481f81e29d4a71540e38734553635e9df76",
   "lib/data/connection.dart": "caa382777eebd736fb69c53c6caeafb80f811e53af56cd0c73659df75fc0e0b1",
   "lib/data/connection_native.dart": "5dc58c3c41da38674331784027449856c2e70450fd5b7c5ee6e3e28b8981ce76",
