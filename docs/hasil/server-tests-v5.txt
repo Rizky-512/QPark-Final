@@ -1,0 +1,54 @@
+test_access_admin_only (test_analytics.AnalyticsTest.test_access_admin_only) ... ok
+test_authorized_exit_still_occupies (test_analytics.AnalyticsTest.test_authorized_exit_still_occupies) ... ok
+test_capacity_changes_are_time_weighted (test_analytics.AnalyticsTest.test_capacity_changes_are_time_weighted) ... ok
+test_empty_and_unobserved (test_analytics.AnalyticsTest.test_empty_and_unobserved) ... ok
+test_invalid_periods (test_analytics.AnalyticsTest.test_invalid_periods) ... ok
+test_known_arrivals_durations_occupancy (test_analytics.AnalyticsTest.test_known_arrivals_durations_occupancy) ... ok
+test_mean_median_differ_and_zero_duration_valid (test_analytics.AnalyticsTest.test_mean_median_differ_and_zero_duration_valid) ... ok
+test_partial_day_and_overnight (test_analytics.AnalyticsTest.test_partial_day_and_overnight) ... ok
+test_payments_use_paid_time_and_ignore_unpaid (test_analytics.AnalyticsTest.test_payments_use_paid_time_and_ignore_unpaid) ... ok
+test_100_mutations_10_clients_20_sessions (test_http.HTTPTest.test_100_mutations_10_clients_20_sessions) ... ok
+test_malformed_requests (test_http.HTTPTest.test_malformed_requests) ... ok
+test_two_independent_clients_and_auth (test_http.HTTPTest.test_two_independent_clients_and_auth) ... ok
+test_AT02_11_rules (test_store.StoreTest.test_AT02_11_rules) ... ok
+test_AT03_06_10_ticket_retry (test_store.StoreTest.test_AT03_06_10_ticket_retry) ... ok
+test_AT04_05_28_auth (test_store.StoreTest.test_AT04_05_28_auth) ... ok
+test_AT07_verification (test_store.StoreTest.test_AT07_verification) ... ok
+test_AT08_full (test_store.StoreTest.test_AT08_full) ... ok
+test_AT09_100_last_slot_races (test_store.StoreTest.test_AT09_100_last_slot_races) ... ok
+test_AT12_13_snapshot (test_store.StoreTest.test_AT12_13_snapshot) ... ok
+test_AT14_concurrent_invoice (test_store.StoreTest.test_AT14_concurrent_invoice) ... ok
+test_AT15_attempts (test_store.StoreTest.test_AT15_attempts) ... ok
+test_AT16_100_parallel_pay_retries (test_store.StoreTest.test_AT16_100_parallel_pay_retries) ... ok
+test_AT17_18_20_penalty_rotation (test_store.StoreTest.test_AT17_18_20_penalty_rotation) ... ok
+test_AT21_wrong_plate (test_store.StoreTest.test_AT21_wrong_plate) ... ok
+test_AT22_deadline_boundaries (test_store.StoreTest.test_AT22_deadline_boundaries) ... ok
+test_AT23_24_complete_once (test_store.StoreTest.test_AT23_24_complete_once) ... ok
+test_AT25_authorization_boundary (test_store.StoreTest.test_AT25_authorization_boundary) ... ok
+test_AT25_cancel (test_store.StoreTest.test_AT25_cancel) ... ok
+test_AT26_parallel_authorize (test_store.StoreTest.test_AT26_parallel_authorize) ... ok
+test_AT27_invalid_tokens (test_store.StoreTest.test_AT27_invalid_tokens) ... ok
+test_AT31_audit_no_secret (test_store.StoreTest.test_AT31_audit_no_secret) ... ok
+test_AT34_restart_restore (test_store.StoreTest.test_AT34_restart_restore) ... ok
+test_AT39_server_session_max8h (test_store.StoreTest.test_AT39_server_session_max8h) ... ok
+test_AT40_authorized_past_deadline (test_store.StoreTest.test_AT40_authorized_past_deadline) ... ok
+test_idempotency_payload_collision (test_store.StoreTest.test_idempotency_payload_collision) ... ok
+test_simulator_can_be_disabled (test_store.StoreTest.test_simulator_can_be_disabled) ... ok
+test_account_edit_revokes_and_does_not_reset_on_restart (test_v4.RevisionTest.test_account_edit_revokes_and_does_not_reset_on_restart) ... ok
+test_defaults_and_role_authorization (test_v4.RevisionTest.test_defaults_and_role_authorization) ... ok
+test_history_scopes_filters_and_pagination (test_v4.RevisionTest.test_history_scopes_filters_and_pagination) ... ok
+test_insufficient_cash_verification_and_unauthorized (test_v4.RevisionTest.test_insufficient_cash_verification_and_unauthorized) ... ok
+test_manual_entry_without_camera (test_v4.RevisionTest.test_manual_entry_without_camera) ... ok
+test_manual_supported_when_qr_simulator_disabled (test_v4.RevisionTest.test_manual_supported_when_qr_simulator_disabled) ... ok
+test_migrates_v3_without_losing_sessions (test_v4.RevisionTest.test_migrates_v3_without_losing_sessions) ... ok
+test_motor_manual_receipt_and_complete (test_v4.RevisionTest.test_motor_manual_receipt_and_complete) ... ok
+test_penalty_uses_vehicle_snapshot_after_settings_change (test_v4.RevisionTest.test_penalty_uses_vehicle_snapshot_after_settings_change) ... ok
+test_qr_and_manual_race_one_payment (test_v4.RevisionTest.test_qr_and_manual_race_one_payment) ... ok
+test_qr_paid_manual_gate_no_second_charge (test_v4.RevisionTest.test_qr_paid_manual_gate_no_second_charge) ... ok
+
+----------------------------------------------------------------------
+Ran 47 tests in 28.058s
+
+OK
+
+HTTP profile: {"clients": 10, "sessions": 20, "mutations": 100, "p95_seconds": 0.1926, "read_after_commit_within3s": 100}

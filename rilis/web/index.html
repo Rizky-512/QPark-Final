@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="id"><head>
+  <base href="/">
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="QPark — parkir mobil, tiket digital, ketersediaan tempat, dan QRIS simulasi.">
+  <meta name="theme-color" content="#166534">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="QPark">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="manifest" href="manifest.json">
+  <title>QPark · Kelola Parkir</title>
+  <style>
+  body{margin:0;background:#F3F8F4;font-family:Arial,sans-serif;color:#172C20}
+  #loading{position:fixed;inset:0;display:grid;place-content:center;text-align:center;gap:18px;padding:24px}
+  .logo{width:72px;height:72px;margin:auto;display:grid;place-content:center;border-radius:20px;background:#166534;color:white;font-size:48px;font-weight:bold}
+  </style>
+</head><body>
+  <div id="loading" role="status"><div class="logo">P</div><strong>Menyiapkan QPark…</strong><span>Mohon tunggu sebentar.</span></div>
+  <noscript>Aktifkan JavaScript untuk menjalankan QPark.</noscript>
+  <script>
+  window.addEventListener('flutter-first-frame',function(){document.getElementById('loading')?.remove()});
+  setTimeout(function(){const el=document.querySelector('#loading span');if(el)el.textContent='Masih memuat. Jika tidak terbuka, periksa koneksi atau muat ulang halaman.'},30000);
+  </script>
+  <script src="flutter_bootstrap.js" async></script>
+</body></html>

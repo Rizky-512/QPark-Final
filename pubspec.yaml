@@ -1,0 +1,39 @@
+name: qpark
+description: Aplikasi parkir satu lokasi untuk HP dan web, dengan QRIS simulasi dan server terpusat.
+publish_to: none
+version: 5.0.0+4
+environment:
+  sdk: '>=3.10.0 <4.0.0'
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  drift: 2.35.0
+  drift_flutter: 0.3.1
+  path_provider: ^2.1.6
+  cryptography: ^2.9.0
+  cryptography_flutter: ^2.3.4
+  http: ^1.6.0
+  shared_preferences: ^2.5.3
+  supabase_flutter: ^2.18.3
+  qr_flutter: ^4.1.0
+  image_picker: ^1.2.0
+  mobile_scanner: ^7.1.0
+  intl: any
+  cupertino_icons: ^1.0.8
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  sqlite3: ^3.5.2
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/schema.sql
+  fonts:
+    - family: Roboto
+      fonts:
+        - asset: assets/fonts/Roboto-Regular.ttf

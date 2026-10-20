@@ -1,0 +1,37 @@
+QPARK v5 — CARA MENJALANKAN
+
+1. Ekstrak seluruh ZIP. Jangan menjalankan BAT langsung dari dalam ZIP.
+2. Pastikan Python 3.10+ terpasang.
+3. Klik dua kali buka_web.bat. Biarkan terminal terbuka.
+4. Browser membuka localhost:7357 pada Login customer.
+   Pilih Coba sebagai customer demo atau Login admin / petugas di bawah.
+5. Login admin / petugas:
+   Admin   : admin   / admin123
+   Petugas : petugas / petugas123
+
+MASUK KENDARAAN:
+Petugas → Masuk → pilih Mobil/Motor → ketik nopol → verifikasi → terima.
+Foto opsional; aktifkan Gunakan gambar kendaraan untuk memakai foto/kamera.
+
+BAYAR MANUAL:
+Petugas → Keluar → Bayar manual → pilih kendaraan → Muat tagihan manual.
+Isi uang diterima, cocokkan nopol, konfirmasi pembayaran dan izin keluar.
+Klik Kendaraan sudah keluar sesudah kendaraan lewat.
+
+BAYAR QR:
+Pengendara → Tiket → centang siap keluar → buka tagihan → Simulasi berhasil.
+Petugas → Keluar → QR keluar → pindai/input token → verifikasi → izinkan.
+
+RIWAYAT:
+Menu Riwayat tersedia bagi semua peran. Pengendara melihat nopol yang dipilih.
+
+Tarif awal: Mobil Rp7.000/jam; Motor Rp2.000/jam. Kapasitas gabungan 20.
+Admin → Kelola: ubah tarif/kapasitas atau kelola akun/password.
+Password awal hanya disetel pada pemasangan/migrasi v4 pertama.
+Untuk memakai data v3 lama, baca bagian migrasi pada README.md.
+
+ANALISIS PARKIR:
+Admin membuka menu Analisis. Grafik memakai data transaksi tercatat.
+Login Google/Supabase belum diaktifkan, menunggu persetujuan integrasi.
+Linux/macOS: python3 scripts/launch.py --open
+Perubahan: docs/PERUBAHAN_V5.md

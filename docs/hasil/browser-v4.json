@@ -1,0 +1,19 @@
+{
+  "passed": true,
+  "steps": [
+    "Default officer login; car entry without photo; customer ticket sync",
+    "Manual Rp7,000, cash Rp10,000, change Rp3,000; authorization retains capacity; physical-exit confirmation releases it",
+    "Customer history shows manual receipt for selected plate",
+    "Officer history shows completed manual transaction",
+    "Default admin login and tariff update through UI",
+    "Motor entry uses new admin tariff; customer QR simulation succeeds",
+    "QR exit retained; admin history includes both payment methods and vehicle types"
+  ],
+  "pageErrors": [],
+  "contexts": 3,
+  "viewports": [
+    "1280x800",
+    "360x800"
+  ],
+  "qrScan": "manual token assist; physical camera not tested"
+}

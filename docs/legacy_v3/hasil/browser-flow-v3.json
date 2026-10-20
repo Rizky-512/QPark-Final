@@ -1,0 +1,18 @@
+{
+  "passed": true,
+  "steps": [
+    "Two independent browser contexts save the same normalized plate.",
+    "Officer uploads readable test image, verifies entry; server creates one shared session.",
+    "Family browser pays Rp7,000; driver browser receives paid status and exit QR.",
+    "Exit authorization opens simulated gate without releasing capacity.",
+    "Actual-passage confirmation completes once; both driver clients see completed state.",
+    "Offline indicator verified; network restored. Reconnected UI state was not separately asserted."
+  ],
+  "pageErrors": [],
+  "contexts": 3,
+  "viewports": [
+    "1280x720",
+    "360x800"
+  ],
+  "qrInput": "manual assist; physical camera not tested"
+}

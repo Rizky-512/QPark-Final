@@ -1,0 +1,19 @@
+QPARK — REVISI SRS BARU
+
+1. Ekstrak seluruh ZIP (jangan jalankan BAT dari dalam ZIP).
+2. Pasang Python 3.10+ jika belum ada, centang Add Python to PATH.
+3. Klik dua kali buka_web.bat.
+4. Catat username dan password petugas yang muncul di terminal pertama kali.
+5. Browser membuka QPark. Biarkan terminal tetap menyala.
+
+Tidak perlu IDE atau Flutter SDK untuk membuka build web bawaan.
+Flutter SDK hanya diperlukan jika ingin mengubah source atau membuat APK.
+
+Demo masuk: Login petugas > Masuk > pilih samples/kendaraan_uji.png.
+Nopol pada gambar uji: B 123 AB.
+Di browser/profil pengendara: simpan B123AB untuk melihat tiket yang sama.
+
+Pembayaran QRIS dan gerbang adalah simulasi. Tidak ada uang sungguhan.
+Panduan lengkap: README.md
+Hasil pengujian dan keterbatasan: docs/HASIL_PENGUJIAN.md
+SRS: docs/PRD_SRS_Prototipe_Aplikasi_Parkir.docx

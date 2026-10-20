@@ -1,0 +1,11 @@
+00:00 +0: loading /workspace/scratch/52b85a3a7418/qpark_v4_work/QPark-Flutter/test/remote_service_test.dart
+00:00 +0: /workspace/scratch/52b85a3a7418/qpark_v4_work/QPark-Flutter/test/remote_service_test.dart: AT01/02 local CRUD persists, normalized duplicate rejected, no session mutation
+00:00 +1: /workspace/scratch/52b85a3a7418/qpark_v4_work/QPark-Flutter/test/remote_service_test.dart: AT30 lost response retries exact operation key and reconciles
+00:00 +2: /workspace/scratch/52b85a3a7418/qpark_v4_work/QPark-Flutter/test/remote_service_test.dart: AT39 offline logout immediately locks UI, queues revocation, then revokes
+00:00 +3: /workspace/scratch/52b85a3a7418/qpark_v4_work/QPark-Flutter/test/remote_service_test.dart: AT32 display clock anchored to server, not system wall clock
+00:00 +4: /workspace/scratch/52b85a3a7418/qpark_v4_work/QPark-Flutter/test/remote_service_test.dart: normalization does not guess ambiguous plate characters
+00:01 +5: /workspace/scratch/52b85a3a7418/qpark_v4_work/QPark-Flutter/test/widget_test.dart: AT01/36 existing theme, driver default and officer pages 360.0 PETUGAS
+00:03 +6: /workspace/scratch/52b85a3a7418/qpark_v4_work/QPark-Flutter/test/widget_test.dart: AT01/36 existing theme, driver default and officer pages 1280.0 PETUGAS
+00:05 +7: /workspace/scratch/52b85a3a7418/qpark_v4_work/QPark-Flutter/test/widget_test.dart: AT01/36 existing theme, driver default and officer pages 360.0 ADMIN
+00:06 +8: /workspace/scratch/52b85a3a7418/qpark_v4_work/QPark-Flutter/test/widget_test.dart: AT01/36 existing theme, driver default and officer pages 1280.0 ADMIN
+00:07 +9: All tests passed!

@@ -1,0 +1,17 @@
+CREATE TABLE IF NOT EXISTS migrations(version INTEGER PRIMARY KEY, applied_at REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS metadata(key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS officers(id TEXT PRIMARY KEY, username TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, salt TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1);
+CREATE TABLE IF NOT EXISTS logins(digest TEXT PRIMARY KEY, officer_id TEXT NOT NULL REFERENCES officers(id), expires_at REAL NOT NULL, revoked INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS sessions(id TEXT PRIMARY KEY, plate TEXT NOT NULL, entered_at REAL NOT NULL, entered_by TEXT NOT NULL REFERENCES officers(id), state TEXT NOT NULL CHECK(state IN ('IN_AREA','EXIT_AUTHORIZED','COMPLETED')), exited_at REAL, exited_by TEXT REFERENCES officers(id));
+CREATE UNIQUE INDEX IF NOT EXISTS active_plate ON sessions(plate) WHERE state != 'COMPLETED';
+CREATE INDEX IF NOT EXISTS session_state ON sessions(state,entered_at);
+CREATE TABLE IF NOT EXISTS invoices(id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id), kind TEXT NOT NULL CHECK(kind IN ('BASE','PENALTY')), amount INTEGER NOT NULL CHECK(amount > 0), hours INTEGER NOT NULL, duration REAL NOT NULL, issued_at REAL NOT NULL, expires_at REAL, state TEXT NOT NULL CHECK(state IN ('PENDING','PAID','EXPIRED')), window_id TEXT UNIQUE, paid_at REAL);
+CREATE UNIQUE INDEX IF NOT EXISTS base_open ON invoices(session_id) WHERE kind='BASE' AND state='PENDING';
+CREATE UNIQUE INDEX IF NOT EXISTS base_paid ON invoices(session_id) WHERE kind='BASE' AND state='PAID';
+CREATE TABLE IF NOT EXISTS attempts(id TEXT PRIMARY KEY, invoice_id TEXT NOT NULL REFERENCES invoices(id), operation_key TEXT NOT NULL UNIQUE, outcome TEXT NOT NULL CHECK(outcome IN ('PENDING','SUCCESS','FAILED')), server_time REAL NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS invoice_success ON attempts(invoice_id) WHERE outcome='SUCCESS';
+CREATE TABLE IF NOT EXISTS windows(id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id), invoice_id TEXT NOT NULL UNIQUE REFERENCES invoices(id), sequence INTEGER NOT NULL, paid_at REAL NOT NULL, deadline REAL NOT NULL, token_digest TEXT NOT NULL UNIQUE, UNIQUE(session_id,sequence));
+CREATE TABLE IF NOT EXISTS authorizations(id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id), window_id TEXT NOT NULL REFERENCES windows(id), approved_by TEXT NOT NULL REFERENCES officers(id), approved_at REAL NOT NULL, expires_at REAL NOT NULL, state TEXT NOT NULL CHECK(state IN ('ACTIVE','EXPIRED','CANCELLED','COMPLETED')));
+CREATE UNIQUE INDEX IF NOT EXISTS one_authorization ON authorizations(session_id) WHERE state='ACTIVE';
+CREATE TABLE IF NOT EXISTS operations(key TEXT PRIMARY KEY, action TEXT NOT NULL, fingerprint TEXT NOT NULL, actor TEXT NOT NULL, result TEXT NOT NULL, created_at REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS audit(id TEXT PRIMARY KEY, entity_id TEXT NOT NULL, event_type TEXT NOT NULL, actor TEXT NOT NULL, server_time REAL NOT NULL, result TEXT NOT NULL);

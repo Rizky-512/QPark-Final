@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "health_version": 5,
+  "assets_byte_equal": [
+    "index.html",
+    "main.dart.js",
+    "flutter_bootstrap.js",
+    "canvaskit/canvaskit.wasm",
+    "assets/assets/fonts/Roboto-Regular.ttf"
+  ],
+  "source_manifest_matches": true,
+  "launch_from_outside_project": true
+}

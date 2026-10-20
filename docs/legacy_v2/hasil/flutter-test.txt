@@ -1,0 +1,94 @@
+00:00 +0: loading QPark-Flutter/test/domain_test.dart
+00:00 +0: QPark-Flutter/test/domain_test.dart: AT-04 pelat kapital tanpa spasi
+00:00 +1: QPark-Flutter/test/domain_test.dart: AT-05 pelat tidak valid ""
+00:00 +2: QPark-Flutter/test/domain_test.dart: AT-05 pelat tidak valid "  "
+00:00 +3: QPark-Flutter/test/domain_test.dart: AT-05 pelat tidak valid "A1"
+00:00 +4: QPark-Flutter/test/domain_test.dart: AT-05 pelat tidak valid "AB-123"
+00:00 +5: QPark-Flutter/test/domain_test.dart: AT-05 pelat tidak valid "ABCDEFGHIJKLM"
+00:00 +6: QPark-Flutter/test/domain_test.dart: AT-05 pelat tidak valid "à123"
+00:00 +7: QPark-Flutter/test/domain_test.dart: AT-07 format rupiah sah
+00:00 +8: QPark-Flutter/test/domain_test.dart: AT-07 rupiah tidak valid "1.5"
+00:00 +9: QPark-Flutter/test/domain_test.dart: AT-07 rupiah tidak valid "1,5"
+00:00 +10: QPark-Flutter/test/domain_test.dart: AT-07 rupiah tidak valid "-1"
+00:00 +11: QPark-Flutter/test/domain_test.dart: AT-07 rupiah tidak valid ""
+00:00 +12: QPark-Flutter/test/domain_test.dart: AT-07 rupiah tidak valid "1.00"
+00:00 +13: QPark-Flutter/test/domain_test.dart: AT-07 rupiah tidak valid "1 000"
+00:00 +14: QPark-Flutter/test/domain_test.dart: AT-07 rupiah tidak valid "0.000"
+00:00 +15: QPark-Flutter/test/domain_test.dart: AT-07 rupiah tidak valid "9007199254740992"
+00:00 +16: QPark-Flutter/test/domain_test.dart: AT-11 kapasitas integer dan batas aman web
+00:00 +17: QPark-Flutter/test/domain_test.dart: AT-06 0 menit = 1 jam termasuk tengah malam
+00:00 +18: QPark-Flutter/test/domain_test.dart: AT-06 60 menit = 1 jam termasuk tengah malam
+00:00 +19: QPark-Flutter/test/domain_test.dart: AT-06 61 menit = 2 jam termasuk tengah malam
+00:00 +20: QPark-Flutter/test/domain_test.dart: AT-06 1440 menit = 24 jam termasuk tengah malam
+00:00 +21: QPark-Flutter/test/domain_test.dart: AT-06 satu milidetik lewat jam dibulatkan
+00:00 +22: QPark-Flutter/test/domain_test.dart: AT-06 jam mundur ditolak
+00:00 +23: QPark-Flutter/test/domain_test.dart: AT-10 rentang terbalik ditolak
+00:00 +24: QPark-Flutter/test/domain_test.dart: AT-12 hash bersalt dan password salah ditolak
+00:00 +25: QPark-Flutter/test/widget_test.dart: NFR-06 semua halaman tanpa overflow pada 1366.0x768.0
+00:00 +26: QPark-Flutter/test/widget_test.dart: NFR-06 semua halaman tanpa overflow pada 1366.0x768.0
+00:00 +27: QPark-Flutter/test/widget_test.dart: NFR-06 semua halaman tanpa overflow pada 1366.0x768.0
+00:00 +28: QPark-Flutter/test/widget_test.dart: NFR-06 semua halaman tanpa overflow pada 1366.0x768.0
+00:00 +29: QPark-Flutter/test/widget_test.dart: NFR-06 semua halaman tanpa overflow pada 1366.0x768.0
+00:00 +30: QPark-Flutter/test/widget_test.dart: NFR-06 semua halaman tanpa overflow pada 1366.0x768.0
+00:00 +31: QPark-Flutter/test/widget_test.dart: NFR-06 semua halaman tanpa overflow pada 1366.0x768.0
+00:00 +31: QPark-Flutter/test/performance_test.dart: NFR-02 19 dari 20 operasi <=3 detik pada 1.000 transaksi
+NFR-02 dashboard: 20/20 <=3s; p95=1ms; max=4ms
+00:00 +32: QPark-Flutter/test/widget_test.dart: NFR-06 semua halaman tanpa overflow pada 1366.0x768.0
+00:00 +33: QPark-Flutter/test/widget_test.dart: NFR-06 semua halaman tanpa overflow pada 1366.0x768.0
+00:00 +34: QPark-Flutter/test/widget_test.dart: NFR-06 semua halaman tanpa overflow pada 1366.0x768.0
+00:00 +35: QPark-Flutter/test/widget_test.dart: NFR-06 semua halaman tanpa overflow pada 1366.0x768.0
+00:00 +36: QPark-Flutter/test/widget_test.dart: NFR-06 semua halaman tanpa overflow pada 1366.0x768.0
+00:00 +37: QPark-Flutter/test/widget_test.dart: NFR-06 semua halaman tanpa overflow pada 1366.0x768.0
+00:00 +37: QPark-Flutter/test/performance_test.dart: NFR-02 19 dari 20 operasi <=3 detik pada 1.000 transaksi
+NFR-02 riwayat: 20/20 <=3s; p95=15ms; max=33ms
+00:00 +38: QPark-Flutter/test/widget_test.dart: NFR-06 semua halaman tanpa overflow pada 1366.0x768.0
+00:00 +38: QPark-Flutter/test/performance_test.dart: NFR-02 19 dari 20 operasi <=3 detik pada 1.000 transaksi
+NFR-02 pendapatan: 20/20 <=3s; p95=0ms; max=1ms
+00:00 +39: QPark-Flutter/test/widget_test.dart: NFR-06 semua halaman tanpa overflow pada 1366.0x768.0
+00:00 +39: QPark-Flutter/test/performance_test.dart: NFR-02 19 dari 20 operasi <=3 detik pada 1.000 transaksi
+NFR-02 masuk_bayar: 20/20 <=3s; p95=2ms; max=7ms
+00:00 +40: QPark-Flutter/test/widget_test.dart: NFR-06 semua halaman tanpa overflow pada 1366.0x768.0
+00:00 +41: QPark-Flutter/test/widget_test.dart: NFR-06 semua halaman tanpa overflow pada 1366.0x768.0
+00:00 +42: QPark-Flutter/test/widget_test.dart: NFR-06 semua halaman tanpa overflow pada 1366.0x768.0
+00:00 +43: QPark-Flutter/test/widget_test.dart: NFR-06 semua halaman tanpa overflow pada 1366.0x768.0
+00:00 +44: QPark-Flutter/test/widget_test.dart: NFR-06 semua halaman tanpa overflow pada 1366.0x768.0
+00:00 +44: QPark-Flutter/test/service_test.dart: AT-12 persistensi setelah tutup dan buka SQLite
+WARNING (drift): It looks like you've created the database class QParkDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
+Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
+Here is the stacktrace from when the database was opened a second time:
+#0      GeneratedDatabase._handleInstantiated (package:drift/src/runtime/api/db_base.dart:96:30)
+#1      GeneratedDatabase._whenConstructed (package:drift/src/runtime/api/db_base.dart:73:12)
+#2      new GeneratedDatabase (package:drift/src/runtime/api/db_base.dart:64:5)
+#3      new QParkDatabase (package:qpark/data/database.dart)
+#4      main.<anonymous closure> (file://QPark-Flutter/test/service_test.dart:355:7)
+<asynchronous suspension>
+#5      Declarer.test.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/declarer.dart:253:15)
+<asynchronous suspension>
+#6      Declarer.test.<anonymous closure> (package:test_api/src/backend/declarer.dart:250:11)
+<asynchronous suspension>
+#7      Invoker._waitForOutstandingCallbacks.<anonymous closure> (package:test_api/src/backend/invoker.dart:318:9)
+<asynchronous suspension>
+This warning will only appear on debug builds.
+WARNING (drift): It looks like you've created the database class QParkDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
+Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
+Here is the stacktrace from when the database was opened a second time:
+#0      GeneratedDatabase._handleInstantiated (package:drift/src/runtime/api/db_base.dart:96:30)
+#1      GeneratedDatabase._whenConstructed (package:drift/src/runtime/api/db_base.dart:73:12)
+#2      new GeneratedDatabase (package:drift/src/runtime/api/db_base.dart:64:5)
+#3      new QParkDatabase (package:qpark/data/database.dart)
+#4      main.<anonymous closure> (file://QPark-Flutter/test/service_test.dart:367:9)
+<asynchronous suspension>
+#5      Declarer.test.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/declarer.dart:253:15)
+<asynchronous suspension>
+#6      Declarer.test.<anonymous closure> (package:test_api/src/backend/declarer.dart:250:11)
+<asynchronous suspension>
+#7      Invoker._waitForOutstandingCallbacks.<anonymous closure> (package:test_api/src/backend/invoker.dart:318:9)
+<asynchronous suspension>
+This warning will only appear on debug builds.
+00:00 +45: QPark-Flutter/test/widget_test.dart: NFR-06 semua halaman tanpa overflow pada 1366.0x768.0
+00:02 +46: QPark-Flutter/test/widget_test.dart: NFR-06 semua halaman tanpa overflow pada 390.0x844.0
+00:03 +47: QPark-Flutter/test/widget_test.dart: NFR-06 semua halaman tanpa overflow pada 320.0x640.0
+00:05 +48: QPark-Flutter/test/widget_test.dart: AT-01 login dan UC-08 konfirmasi logout form belum disimpan
+00:06 +49: QPark-Flutter/test/widget_test.dart: UC-02 error baca tanpa slot palsu
+00:07 +50: QPark-Flutter/test/widget_test.dart: AT-09 biaya baru ditampilkan dan perlu konfirmasi kedua
+00:08 +51: All tests passed!

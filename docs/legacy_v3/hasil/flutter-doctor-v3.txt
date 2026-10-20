@@ -1,0 +1,67 @@
+   Woah! You appear to be trying to run flutter as root.
+   We strongly recommend running the flutter tool without superuser privileges.
+  /
+📎
+[!] Flutter (Channel [user-branch], 3.44.0, on Ubuntu 24.04.3 LTS 6.18.44, locale C.UTF-8) [137ms]
+    ! Flutter version 3.44.0 on channel [user-branch] at /workspace/scratch/52b85a3a7418/qpark_tools/flutter
+      Currently on an unknown channel. Run `flutter channel` to switch to an official channel.
+      If that doesn't fix the issue, reinstall Flutter by following instructions at https://flutter.dev/setup.
+    ! The flutter binary is not on your path. Consider adding /workspace/scratch/52b85a3a7418/qpark_tools/flutter/bin to your path.
+    ! The dart binary is not on your path. Consider adding /workspace/scratch/52b85a3a7418/qpark_tools/flutter/bin to your path.
+    ! Upstream repository unknown source is not a standard remote.
+      Set environment variable "FLUTTER_GIT_URL" to unknown source to dismiss this error.
+    • Framework revision 559ffa3f75 (5 months ago), 2026-05-15 14:13:13 -0700
+    • Engine revision 4c525dac5e
+    • Dart version 3.12.0
+    • DevTools version 2.57.0
+    • Feature flags: enable-web, enable-linux-desktop, enable-macos-desktop, enable-windows-desktop, enable-android, enable-ios, cli-animations, enable-native-assets, enable-swift-package-manager, omit-legacy-version-file, enable-lldb-debugging, enable-uiscene-migration, enable-riscv64
+    • If those were intentional, you can disregard the above warnings; however it is recommended to use "git" directly to perform update checks and upgrades.
+
+[✗] Android toolchain - develop for Android devices [91ms]
+    ✗ Unable to locate Android SDK.
+      Install Android Studio from: https://developer.android.com/studio/index.html
+      On first launch it will assist you in installing the Android SDK components.
+      (or visit https://flutter.dev/to/linux-android-setup for detailed instructions).
+      If the Android SDK has been installed to a custom location, please use
+      `flutter config --android-sdk` to update to that location.
+
+
+[✗] Chrome - develop for the web (Cannot find Chrome executable at google-chrome) [57ms]
+    ! Cannot find Chrome. Try setting CHROME_EXECUTABLE to a Chrome executable.
+
+[✗] Linux toolchain - develop for Linux desktop [114ms]
+    ✗ clang++ is required for Linux development.
+      It is likely available from your distribution (e.g.: apt install clang), or can be downloaded from https://releases.llvm.org/
+    ✗ CMake is required for Linux development.
+      It is likely available from your distribution (e.g.: apt install cmake), or can be downloaded from https://cmake.org/download/
+    ✗ ninja is required for Linux development.
+      It is likely available from your distribution (e.g.: apt install ninja-build), or can be downloaded from https://github.com/ninja-build/ninja/releases
+    ✗ pkg-config is required for Linux development.
+      It is likely available from your distribution (e.g.: apt install pkg-config), or can be downloaded from https://www.freedesktop.org/wiki/Software/pkg-config/
+
+[☠] Proxy Configuration (the doctor check crashed)
+    ✗ Due to an error, the doctor check did not complete. If the error message below is not helpful, please let us know about this issue at https://github.com/flutter/flutter/issues.
+    ✗ SocketException: Failed listing interfaces (OS Error: Bad value for ai_flags)
+    • #0      _NativeSocket.listInterfaces.<anonymous closure> (dart:io-patch/socket_patch.dart:626:9)
+      #1      _rootRunUnary (dart:async/zone_root.dart:48:47)
+      #2      _CustomZone.runUnary (dart:async/zone.dart:733:19)
+      <asynchronous suspension>
+      #3      listNetworkInterfaces (package:flutter_tools/src/base/io.dart:450:48)
+      <asynchronous suspension>
+      #4      ProxyValidator._getLoopbackAddresses (package:flutter_tools/src/proxy_validator.dart:59:54)
+      <asynchronous suspension>
+      #5      ProxyValidator.validateImpl (package:flutter_tools/src/proxy_validator.dart:44:46)
+      <asynchronous suspension>
+      #6      DoctorValidator.validate (package:flutter_tools/src/doctor_validator.dart:58:37)
+      <asynchronous suspension>
+      #7      Future.any.onValue (dart:async/future.dart:637:5)
+      <asynchronous suspension>
+
+
+[✓] Connected device (1 available) [113ms]
+    • Linux (desktop) • linux • linux-x64 • Ubuntu 24.04.3 LTS 6.18.44
+
+[✓] Network resources [12.2s]
+    • All expected network resources are available.
+
+! Doctor found issues in 5 categories.

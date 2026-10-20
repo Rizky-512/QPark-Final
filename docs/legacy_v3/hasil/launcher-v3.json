@@ -1,0 +1,17 @@
+{
+  "passed": true,
+  "platform": "Linux",
+  "pathContainsSpaces": true,
+  "launchedOutsideProject": true,
+  "neededFlutter": false,
+  "initialCapacity": 20,
+  "staticAssetsExact": [
+    "index.html",
+    "main.dart.js",
+    "flutter_bootstrap.js",
+    "canvaskit/canvaskit.wasm",
+    "assets/assets/fonts/Roboto-Regular.ttf",
+    "vendor/zxing-0.23.0.min.js"
+  ],
+  "windowsBat": "Reviewed only; not executed on Windows"
+}

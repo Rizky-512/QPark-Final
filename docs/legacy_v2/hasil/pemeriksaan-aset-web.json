@@ -1,0 +1,50 @@
+[
+  {
+    "file": "index.html",
+    "status": 200,
+    "type": "text/html",
+    "size": 1719,
+    "coop": "same-origin",
+    "coep": "require-corp"
+  },
+  {
+    "file": "main.dart.js",
+    "status": 200,
+    "type": "text/javascript",
+    "size": 3403717,
+    "coop": "same-origin",
+    "coep": "require-corp"
+  },
+  {
+    "file": "sqlite3.wasm",
+    "status": 200,
+    "type": "application/wasm",
+    "size": 748686,
+    "coop": "same-origin",
+    "coep": "require-corp"
+  },
+  {
+    "file": "drift_worker.dart.js",
+    "status": 200,
+    "type": "text/javascript",
+    "size": 357220,
+    "coop": "same-origin",
+    "coep": "require-corp"
+  },
+  {
+    "file": "assets/assets/schema.sql",
+    "status": 200,
+    "type": "application/sql",
+    "size": 6662,
+    "coop": "same-origin",
+    "coep": "require-corp"
+  },
+  {
+    "file": "canvaskit/canvaskit.wasm",
+    "status": 200,
+    "type": "application/wasm",
+    "size": 7284602,
+    "coop": "same-origin",
+    "coep": "require-corp"
+  }
+]
