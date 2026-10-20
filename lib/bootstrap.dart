@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config.dart';
 import 'data/remote_repository.dart';
 import 'data/supabase_customer_repository.dart';
+import 'data/supabase_remote_repository.dart';
 import 'logic/customer_auth.dart';
 import 'logic/remote_service.dart';
 
@@ -19,7 +20,7 @@ Future<RemoteService> bootstrap() async {
   );
   final client = initialized.client;
   return RemoteService(
-    RemoteRepository(AppConfig.apiBaseUrl),
+    SupabaseRemoteRepository(client),
     preferences,
     customerAuth: SupabaseCustomerAuth(
       client,

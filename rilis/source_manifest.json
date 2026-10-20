@@ -1,5 +1,5 @@
 {
-  "lib/bootstrap.dart": "aabb7aa280837ac746484a4edebd24c4adb9ae036066566a472244469648562b",
+  "lib/bootstrap.dart": "590a5191c9b3ef327de4300cba71600bf00cc35b47af37059ad9e1ec2b43b236",
   "lib/config.dart": "5cf24236fac53b239ac43ebf404fc9749e6fdb1fd9e79c3bba62830b3bd7dbcf",
   "lib/main.dart": "6e0b16c48e135e9fee647e6f06821481f81e29d4a71540e38734553635e9df76",
   "lib/data/connection.dart": "caa382777eebd736fb69c53c6caeafb80f811e53af56cd0c73659df75fc0e0b1",
@@ -11,6 +11,7 @@
   "lib/data/remote_repository.dart": "29bf86c314affb71a4ed070ba28d49c4cc6c1444ede44c3998c002d1ad0e0e54",
   "lib/data/sqlite_repository.dart": "448a7dfb2e184600a9f4091d166c110bd5bbc2794ba1beed5c391826917f56b1",
   "lib/data/supabase_customer_repository.dart": "7e648c5d951904af865b4b643038065588206e550229d1e87789a936e1a9c23e",
+  "lib/data/supabase_remote_repository.dart": "7712e51934779f9b81357bf24b9519719c38f716cde94af5c5d8abf98372e4db",
   "lib/domain/errors.dart": "8ee299571fa694d7c6af4f3b8b4393141e1554785b5b9238d5d78b8d19e6f332",
   "lib/domain/models.dart": "416e48f8d13099eb28bb4d3791c1be5721000cb5c844a66662747e6261a834de",
   "lib/domain/rules.dart": "5c0dd47857853204e9fcec69711f886b0dec7e1183ed7e3993934322bb0dcf4b",
