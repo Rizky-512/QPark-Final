@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../domain/errors.dart';
 import '../../logic/remote_service.dart';
@@ -15,18 +18,33 @@ class _CustomerLoginPageState extends State<CustomerLoginPage> {
   bool busy = false;
   String? error;
   Future<void> google() async {
+    var navigationStarted = false;
     setState(() {
       busy = true;
       error = null;
     });
     try {
       await widget.service.loginCustomerGoogle();
+      navigationStarted = kIsWeb;
     } catch (e) {
       if (mounted) {
         setState(() => error = e is QParkException ? e.message : e.toString());
       }
     } finally {
-      if (mounted) setState(() => busy = false);
+      if (mounted && navigationStarted) {
+        // A successful web launch unloads this page. If navigation is blocked,
+        // restore the button and present a useful retry message.
+        Timer(const Duration(seconds: 15), () {
+          if (!mounted) return;
+          setState(() {
+            busy = false;
+            error =
+                'Halaman Google belum terbuka. Coba lagi atau nonaktifkan pemblokir pop-up untuk situs ini.';
+          });
+        });
+      } else if (mounted) {
+        setState(() => busy = false);
+      }
     }
   }
 
@@ -87,8 +105,13 @@ class _CustomerLoginPageState extends State<CustomerLoginPage> {
           onPressed: !busy && widget.service.customerAuth.googleAvailable
               ? google
               : null,
-          icon: const Icon(Icons.account_circle_outlined),
-          label: const Text('Masuk dengan Google'),
+          icon: busy
+              ? const SizedBox.square(
+                  dimension: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.account_circle_outlined),
+          label: Text(busy ? 'Membuka Google…' : 'Masuk dengan Google'),
         ),
         const SizedBox(height: 8),
         Text(
