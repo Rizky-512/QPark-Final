@@ -55,6 +55,9 @@ ThemeData buildTheme() => ThemeData(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     ),
   ),
+  textButtonTheme: TextButtonThemeData(
+    style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+  ),
   cardTheme: CardThemeData(
     color: AppColors.surface,
     elevation: 0,
@@ -134,6 +137,7 @@ Future<bool> confirm(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(title),
+        scrollable: true,
         content: Text(body),
         actions: [
           TextButton(
@@ -191,21 +195,35 @@ class SurfaceCard extends StatelessWidget {
 }
 
 class StatusPill extends StatelessWidget {
-  const StatusPill(this.label, {super.key, this.problem = false});
+  const StatusPill(
+    this.label, {
+    super.key,
+    this.problem = false,
+    this.pending = false,
+  });
   final String label;
   final bool problem;
+  final bool pending;
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
     decoration: BoxDecoration(
-      color: problem ? AppColors.dangerBackground : AppColors.successBackground,
+      color: problem
+          ? AppColors.dangerBackground
+          : pending
+          ? AppColors.background
+          : AppColors.successBackground,
       borderRadius: BorderRadius.circular(30),
     ),
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(
-          problem ? Icons.block_rounded : Icons.check_circle_outline_rounded,
+          problem
+              ? Icons.block_rounded
+              : pending
+              ? Icons.schedule
+              : Icons.check_circle_outline_rounded,
           size: 16,
           color: problem ? AppColors.danger : AppColors.primary,
         ),

@@ -16,6 +16,7 @@ class ExitPage extends StatefulWidget {
 class _ExitPageState extends State<ExitPage>
     with AutomaticKeepAliveClientMixin {
   final token = TextEditingController(), plate = TextEditingController();
+  final tokenScroll = ScrollController(keepScrollOffset: false);
   Json? scanned;
   String? scannedToken;
   bool matched = false, busy = false, manual = false;
@@ -33,6 +34,7 @@ class _ExitPageState extends State<ExitPage>
   @override
   void dispose() {
     token.dispose();
+    tokenScroll.dispose();
     plate.dispose();
     ticker?.cancel();
     super.dispose();
@@ -171,28 +173,37 @@ class _ExitPageState extends State<ExitPage>
                 label: const Text('Pindai QR dengan kamera'),
               ),
               const SizedBox(height: 20),
-              TextField(
-                key: const Key('exit-token'),
-                controller: token,
-                enabled: !busy,
-                onChanged: (_) => setState(() {
-                  scanned = null;
-                  scannedToken = null;
-                  matched = false;
-                }),
-                decoration: const InputDecoration(
-                  labelText: 'Token manual · bantuan demonstrasi',
-                  helperText:
-                      'Tempel token QR keluar jika kamera tidak tersedia.',
-                  helperMaxLines: 3,
-                ),
-              ),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                key: const Key('exit-scan'),
-                onPressed: busy || !service.online ? null : scan,
-                icon: const Icon(Icons.search),
-                label: Text(busy ? 'Memeriksa…' : 'Periksa QR / token'),
+              ExpansionTile(
+                key: const PageStorageKey('exit-token-help'),
+                tilePadding: EdgeInsets.zero,
+                title: const Text('Kamera tidak tersedia?'),
+                subtitle: const Text('Gunakan token QR untuk bantuan demo.'),
+                children: [
+                  TextField(
+                    key: const Key('exit-token'),
+                    controller: token,
+                    scrollController: tokenScroll,
+                    enabled: !busy,
+                    onChanged: (_) => setState(() {
+                      scanned = null;
+                      scannedToken = null;
+                      matched = false;
+                    }),
+                    decoration: const InputDecoration(
+                      labelText: 'Token manual · bantuan demonstrasi',
+                      helperText:
+                          'Tempel token QR keluar jika kamera tidak tersedia.',
+                      helperMaxLines: 3,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    key: const Key('exit-scan'),
+                    onPressed: busy || !service.online ? null : scan,
+                    icon: const Icon(Icons.search),
+                    label: Text(busy ? 'Memeriksa…' : 'Periksa QR / token'),
+                  ),
+                ],
               ),
             ],
           ),
@@ -319,7 +330,11 @@ class _ExitPageState extends State<ExitPage>
           onSelectionChanged: (v) => setState(() => manual = v.first),
         ),
         const SizedBox(height: 24),
-        manual ? ManualPaymentPage(args: widget.args) : qrContent,
+        Offstage(offstage: manual, child: qrContent),
+        Offstage(
+          offstage: !manual,
+          child: ManualPaymentPage(args: widget.args),
+        ),
       ],
     );
   }

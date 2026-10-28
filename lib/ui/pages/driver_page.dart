@@ -13,10 +13,12 @@ class _DriverPageState extends State<DriverPage> {
   Future<void> edit([String? old]) async {
     final controller = TextEditingController(text: old);
     String? error;
+    bool saving = false;
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialog) => AlertDialog(
+          scrollable: true,
           title: Text(old == null ? 'Tambah kendaraan' : 'Edit nopol'),
           content: TextField(
             key: const Key('vehicle-plate'),
@@ -28,7 +30,10 @@ class _DriverPageState extends State<DriverPage> {
               hintText: 'B 1234 AB',
               errorText: error,
               errorMaxLines: 3,
-              helperText: 'Tersimpan di perangkat ini.',
+              helperMaxLines: 3,
+              helperText: widget.args.service.customerIdentity == null
+                  ? 'Tersimpan di perangkat ini.'
+                  : 'Tersimpan pada akun Anda.',
             ),
           ),
           actions: [
@@ -37,20 +42,29 @@ class _DriverPageState extends State<DriverPage> {
               child: const Text('Batal'),
             ),
             FilledButton(
-              onPressed: () async {
-                try {
-                  await widget.args.service.savePlate(
-                    controller.text,
-                    replacing: old,
-                  );
-                  if (dialogContext.mounted) Navigator.pop(dialogContext);
-                } catch (e) {
-                  if (dialogContext.mounted) {
-                    setDialog(() => error = e.toString());
-                  }
-                }
-              },
-              child: const Text('Simpan'),
+              onPressed: saving
+                  ? null
+                  : () async {
+                      setDialog(() {
+                        saving = true;
+                        error = null;
+                      });
+                      try {
+                        await widget.args.service.savePlate(
+                          controller.text,
+                          replacing: old,
+                        );
+                        if (dialogContext.mounted) Navigator.pop(dialogContext);
+                      } catch (e) {
+                        if (dialogContext.mounted) {
+                          setDialog(() {
+                            error = e.toString();
+                            saving = false;
+                          });
+                        }
+                      }
+                    },
+              child: Text(saving ? 'Menyimpan…' : 'Simpan'),
             ),
           ],
         ),
@@ -71,6 +85,61 @@ class _DriverPageState extends State<DriverPage> {
           'Parkir lebih mudah',
           'Simpan nopol. Tiket muncul setelah petugas memverifikasi kendaraan masuk.',
         ),
+        if (service.plates.length > 1) ...[
+          DropdownButtonFormField<String>(
+            key: ValueKey('selected-${service.selected}'),
+            initialValue: service.selected,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'Kendaraan yang digunakan',
+            ),
+            items: service.plates
+                .map(
+                  (plate) => DropdownMenuItem(value: plate, child: Text(plate)),
+                )
+                .toList(),
+            onChanged: service.selectPlate,
+          ),
+          const SizedBox(height: 16),
+        ],
+        if (service.selected != null)
+          SurfaceCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Parkir Anda · ${service.selected}',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 16),
+                if (service.ticket == null)
+                  EmptyState(
+                    title: !service.online
+                        ? 'Memeriksa tiket'
+                        : 'Belum tercatat masuk',
+                    description: !service.online
+                        ? 'Tiket belum dapat diperbarui. Periksa koneksi lalu coba lagi.'
+                        : 'Tiket tersedia setelah petugas memverifikasi kendaraan. Anda tidak perlu membuka HP di pintu masuk.',
+                  )
+                else ...[
+                  SessionSummary(service.ticket!),
+                  const SizedBox(height: 20),
+                  FilledButton.icon(
+                    onPressed: () => widget.args.navigate(1),
+                    icon: const Icon(Icons.receipt_long_outlined),
+                    label: Text(
+                      service.ticket!['state'] == 'COMPLETED'
+                          ? 'Lihat sesi selesai'
+                          : service.ticket!['window_status'] == 'VALID'
+                          ? 'Tampilkan QR keluar'
+                          : 'Buka tiket & pembayaran',
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        const SizedBox(height: 24),
         CapacityCard(service),
         const SizedBox(height: 24),
         SurfaceCard(
@@ -79,7 +148,9 @@ class _DriverPageState extends State<DriverPage> {
             children: [
               PageHeading(
                 'Kendaraan saya',
-                'Daftar ini tersimpan pada perangkat Anda.',
+                service.customerIdentity == null
+                    ? 'Pilih kendaraan yang sedang Anda gunakan.'
+                    : 'Kendaraan tersimpan pada akun Anda.',
                 action: OutlinedButton.icon(
                   key: const Key('vehicle-add'),
                   onPressed: () => edit(),
@@ -91,7 +162,7 @@ class _DriverPageState extends State<DriverPage> {
                 const EmptyState(
                   title: 'Tambahkan nopol kendaraan',
                   description:
-                      'Tidak perlu membuat akun. Nopol yang sama boleh disimpan keluarga untuk membantu pembayaran.',
+                      'Ketuk Tambah, lalu isi nopol. Tiket muncul setelah petugas mencatat kendaraan masuk.',
                 ),
               ...service.plates.map(
                 (p) => Padding(
@@ -146,38 +217,6 @@ class _DriverPageState extends State<DriverPage> {
           ),
         ),
         const SizedBox(height: 24),
-        if (service.selected != null)
-          SurfaceCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Tiket aktif · ${service.selected}',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 16),
-                if (service.ticket == null)
-                  const EmptyState(
-                    title: 'Belum tercatat masuk',
-                    description:
-                        'Tiket tersedia setelah petugas memverifikasi kendaraan. Anda tidak perlu membuka HP di pintu masuk.',
-                  )
-                else ...[
-                  SessionSummary(service.ticket!),
-                  const SizedBox(height: 20),
-                  FilledButton.icon(
-                    onPressed: () => widget.args.navigate(1),
-                    icon: const Icon(Icons.receipt_long_outlined),
-                    label: Text(
-                      service.ticket!['state'] == 'COMPLETED'
-                          ? 'Lihat sesi selesai'
-                          : 'Buka tiket & pembayaran',
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
       ],
     );
   }

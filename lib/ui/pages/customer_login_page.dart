@@ -116,8 +116,8 @@ class _CustomerLoginPageState extends State<CustomerLoginPage> {
         const SizedBox(height: 8),
         Text(
           widget.service.customerAuth.googleAvailable
-              ? 'Akun dan daftar kendaraan disimpan aman melalui Supabase.'
-              : 'Konfigurasi Supabase belum dipasang pada build ini.',
+              ? 'Daftar kendaraan dapat digunakan kembali saat masuk dengan akun yang sama.'
+              : 'Login Google belum tersedia. Anda tetap dapat mencoba mode demo.',
           textAlign: TextAlign.center,
           style: const TextStyle(fontSize: 12, color: AppColors.muted),
         ),
@@ -134,6 +134,14 @@ class _CustomerLoginPageState extends State<CustomerLoginPage> {
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 12, color: AppColors.muted, height: 1.5),
         ),
+        if (widget.service.sessionNotice != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Text(
+              widget.service.sessionNotice!,
+              style: const TextStyle(color: AppColors.danger),
+            ),
+          ),
         if (error != null)
           Padding(
             padding: const EdgeInsets.only(top: 12),

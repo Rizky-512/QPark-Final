@@ -60,10 +60,13 @@ class CapacityCard extends StatelessWidget {
               StatusPill(
                 c == null
                     ? 'Belum tersedia'
+                    : !service.online
+                    ? 'Data terakhir'
                     : c['full'] == true
                     ? 'Penuh'
                     : 'Tersedia',
                 problem: c?['full'] == true,
+                pending: c == null || !service.online,
               ),
             ],
           ),
@@ -134,6 +137,9 @@ class SessionSummary extends StatelessWidget {
           StatusPill(
             stateLabel(session),
             problem: session['window_status'] == 'EXPIRED',
+            pending:
+                session['state'] == 'IN_AREA' &&
+                session['window_status'] != 'VALID',
           ),
         ],
       ),

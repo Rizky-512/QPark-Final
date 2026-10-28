@@ -33,6 +33,23 @@ class _DashboardPageState extends State<DashboardPage> {
             label: const Text('Muat ulang'),
           ),
         ),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            FilledButton.icon(
+              onPressed: () => widget.args.navigate(1),
+              icon: const Icon(Icons.add_circle_outline),
+              label: const Text('Catat kendaraan masuk'),
+            ),
+            OutlinedButton.icon(
+              onPressed: () => widget.args.navigate(2),
+              icon: const Icon(Icons.qr_code_scanner),
+              label: const Text('Pembayaran & keluar'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
         CapacityCard(service),
         const SizedBox(height: 24),
         SurfaceCard(
@@ -55,7 +72,15 @@ class _DashboardPageState extends State<DashboardPage> {
                 ),
               ),
               const SizedBox(height: 16),
-              if (rows.isEmpty) const EmptyState(),
+              if (rows.isEmpty)
+                EmptyState(
+                  title: query.isEmpty
+                      ? 'Belum ada kendaraan'
+                      : 'Nopol tidak ditemukan',
+                  description: query.isEmpty
+                      ? 'Gunakan Catat kendaraan masuk untuk menerima kendaraan.'
+                      : 'Periksa ejaan nopol atau hapus pencarian.',
+                ),
               ...rows.map(
                 (s) => Padding(
                   padding: const EdgeInsets.only(bottom: 12),

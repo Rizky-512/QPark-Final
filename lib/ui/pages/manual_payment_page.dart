@@ -142,10 +142,17 @@ class _ManualPaymentPageState extends State<ManualPaymentPage> {
     final live = service.sessions.where((x) => x['id'] == session?['id']);
     final s = live.isNotEmpty ? live.first : session;
     final authorized =
-        s?['state'] == 'EXIT_AUTHORIZED' && s?['authorization'] != null;
+        s?['state'] == 'EXIT_AUTHORIZED' &&
+        s?['authorization'] != null &&
+        service.serverNow < (s!['authorization']['expires_at'] as num);
     final completed = s?['state'] == 'COMPLETED';
     final due = (invoice?['amount'] as num? ?? 0).toInt();
     final cash = int.tryParse(received.text);
+    final quoteExpired =
+        invoice?['expires_at'] is num &&
+        service.serverNow >= (invoice!['expires_at'] as num);
+    final needsQuote =
+        quoteExpired || (invoice == null && s?['window_status'] != 'VALID');
     final validSelection = service.sessions.any((x) => x['id'] == selected)
         ? selected
         : null;
@@ -160,6 +167,12 @@ class _ManualPaymentPageState extends State<ManualPaymentPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (service.sessions.isEmpty)
+                const EmptyState(
+                  title: 'Tidak ada kendaraan aktif',
+                  description:
+                      'Kendaraan yang dicatat masuk akan tersedia di sini.',
+                ),
               DropdownButtonFormField<String>(
                 key: ValueKey('manual-$validSelection'),
                 initialValue: validSelection,
@@ -177,20 +190,23 @@ class _ManualPaymentPageState extends State<ManualPaymentPage> {
                     .toList(),
                 onChanged: busy
                     ? null
-                    : (v) => setState(() {
-                        selected = v;
-                        session = null;
-                        invoice = null;
-                        verified = false;
-                      }),
+                    : (v) {
+                        setState(() {
+                          selected = v;
+                          session = null;
+                          invoice = null;
+                          verified = false;
+                        });
+                        quote();
+                      },
               ),
               const SizedBox(height: 12),
               OutlinedButton.icon(
-                onPressed: busy || !service.online || selected == null
+                onPressed: busy || !service.online || validSelection == null
                     ? null
                     : quote,
                 icon: const Icon(Icons.receipt_long),
-                label: const Text('Muat tagihan manual'),
+                label: Text(busy ? 'Memuat tagihan…' : 'Muat ulang tagihan'),
               ),
               if (s != null) ...[
                 const SizedBox(height: 20),
@@ -226,7 +242,12 @@ class _ManualPaymentPageState extends State<ManualPaymentPage> {
                     Text(
                       'Berlaku sampai ${wib(invoice!['expires_at'])}. Muat ulang jika kedaluwarsa.',
                     ),
-                  if (due == 0)
+                  if (invoice == null && s['window_status'] != 'VALID')
+                    const Text(
+                      'Muat ulang tagihan untuk memeriksa batas pembayaran terbaru.',
+                      style: TextStyle(color: AppColors.danger),
+                    ),
+                  if (due == 0 && s['window_status'] == 'VALID')
                     const Text(
                       'Tidak ada pembayaran baru. Tagihan sudah lunas.',
                     ),
@@ -234,6 +255,7 @@ class _ManualPaymentPageState extends State<ManualPaymentPage> {
                     const SizedBox(height: 16),
                     TextField(
                       controller: received,
+                      enabled: !busy,
                       keyboardType: TextInputType.number,
                       onChanged: (_) => setState(() {}),
                       decoration: const InputDecoration(
@@ -249,6 +271,8 @@ class _ManualPaymentPageState extends State<ManualPaymentPage> {
                   const SizedBox(height: 16),
                   TextField(
                     controller: plate,
+                    enabled: !busy,
+                    textCapitalization: TextCapitalization.characters,
                     onChanged: (_) => setState(() => verified = false),
                     decoration: const InputDecoration(
                       labelText: 'Nopol kendaraan di depan petugas',
@@ -265,7 +289,8 @@ class _ManualPaymentPageState extends State<ManualPaymentPage> {
                     ),
                   ),
                   FilledButton.icon(
-                    onPressed: busy || !service.online || !verified
+                    onPressed:
+                        busy || !service.online || !verified || needsQuote
                         ? null
                         : pay,
                     icon: const Icon(Icons.check_circle_outline),

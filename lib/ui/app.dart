@@ -118,7 +118,11 @@ class _ShellState extends State<_Shell> {
           ('Tiket', Icons.receipt_long_outlined),
           ('Riwayat', Icons.history),
         ];
-  void navigate(int value) => setState(() => index = value);
+  void navigate(int value) {
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() => index = value);
+  }
+
   Future<void> login() async {
     await Navigator.push<void>(
       context,
@@ -274,11 +278,39 @@ class _ShellState extends State<_Shell> {
         final wide = bounds.maxWidth >= 1000;
         return Scaffold(
           appBar: AppBar(
+            leading: !wide && index >= 4
+                ? BackButton(
+                    key: const Key('back-operations'),
+                    onPressed: () => navigate(0),
+                  )
+                : null,
             title: Text(
-              wide ? destinations[index].$1 : 'QPark',
+              wide
+                  ? destinations[index].$1
+                  : 'QPark · ${destinations[index].$1}',
               style: const TextStyle(fontWeight: FontWeight.w800),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             actions: [
+              if (service.admin && !wide)
+                PopupMenuButton<int>(
+                  key: const Key('admin-menu'),
+                  tooltip: 'Menu admin',
+                  icon: const Icon(Icons.admin_panel_settings_outlined),
+                  onSelected: navigate,
+                  itemBuilder: (_) => [
+                    for (final i in [4, 5])
+                      PopupMenuItem(
+                        value: i,
+                        key: Key('nav-$i'),
+                        child: ListTile(
+                          leading: Icon(destinations[i].$2),
+                          title: Text(destinations[i].$1),
+                        ),
+                      ),
+                  ],
+                ),
               IconButton(
                 key: const Key('logout'),
                 tooltip: 'Keluar akun',
@@ -380,6 +412,8 @@ class _ShellState extends State<_Shell> {
                           children: pages.indexed
                               .map(
                                 (p) => SingleChildScrollView(
+                                  keyboardDismissBehavior:
+                                      ScrollViewKeyboardDismissBehavior.onDrag,
                                   key: PageStorageKey(
                                     'page-${p.$1}-${service.officer}',
                                   ),
@@ -404,14 +438,16 @@ class _ShellState extends State<_Shell> {
               ),
             ],
           ),
-          bottomNavigationBar: wide
+          bottomNavigationBar:
+              wide || index >= 4 || MediaQuery.viewInsetsOf(context).bottom > 0
               ? null
               : NavigationBar(
-                  labelBehavior:
-                      NavigationDestinationLabelBehavior.onlyShowSelected,
-                  selectedIndex: index,
+                  labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+                  selectedIndex: index > 3 ? 0 : index,
                   onDestinationSelected: navigate,
-                  destinations: destinations.indexed
+                  destinations: destinations
+                      .take(service.officer ? 4 : 3)
+                      .indexed
                       .map(
                         (d) => NavigationDestination(
                           key: Key('nav-${d.$1}'),

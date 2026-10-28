@@ -89,7 +89,7 @@ void main() {
       expect(service.role, role);
       expect(service.customerDemo, isFalse);
       expect(
-        find.byKey(const Key('nav-5')),
+        find.byKey(const Key('admin-menu')),
         role == 'ADMIN' ? findsOneWidget : findsNothing,
       );
       expect(tester.takeException(), isNull);
@@ -219,6 +219,14 @@ void main() {
             if (role == 'ADMIN') ...[4, 5],
             0,
           ]) {
+            if (size.width < 1000 && index == 0 && role == 'ADMIN') {
+              await tester.tap(find.byKey(const Key('back-operations')));
+              await settle(tester);
+            }
+            if (role == 'ADMIN' && size.width < 1000 && index >= 4) {
+              await tester.tap(find.byKey(const Key('admin-menu')));
+              await settle(tester);
+            }
             await tester.ensureVisible(find.byKey(Key('nav-$index')));
             await tester.tap(find.byKey(Key('nav-$index')));
             await settle(tester);

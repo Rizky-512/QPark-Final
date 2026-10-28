@@ -9,12 +9,17 @@ void main() {
     'AT-04 pelat kapital tanpa spasi',
     () => expect(normalizePlate(' ab\t1234\ncd '), 'AB1234CD'),
   );
-  for (final value in ['', '  ', 'A1', 'AB-123', 'ABCDEFGHIJKLM', 'à123']) {
+  for (final value in ['', '  ', 'AB-123', 'A' * 33, 'à123']) {
     test(
       'AT-05 pelat tidak valid "$value"',
       () => expect(() => normalizePlate(value), throwsA(isA<QParkException>())),
     );
   }
+  test('Pelat mengikuti kontrak server 1–32 karakter', () {
+    for (final value in ['A', 'A1', 'ABCDEFGHIJKLM', 'A' * 32]) {
+      expect(normalizePlate(value), value);
+    }
+  });
   test('AT-07 format rupiah sah', () {
     for (final text in ['5000', '5.000', 'Rp5.000', ' rp 5.000 ']) {
       expect(parseRupiah(text), 5000);

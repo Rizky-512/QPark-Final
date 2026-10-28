@@ -45,10 +45,12 @@ class RemoteService extends ChangeNotifier {
   StreamSubscription<CustomerIdentity?>? _authSubscription;
   CustomerIdentity? customerIdentity;
   bool customerDemo = false;
+  String? sessionNotice;
   bool get signedIn => officer || customerDemo || customerIdentity != null;
   void enterCustomerDemo() {
     customerIdentity = null;
     customerDemo = true;
+    sessionNotice = null;
     _restoreDemoVehicles();
     emit();
   }
@@ -209,7 +211,9 @@ class RemoteService extends ChangeNotifier {
       online = true;
       error = null;
     } on ApiError catch (e) {
-      if (e.status == 401) {
+      if (e.status == 401 && token != null) {
+        sessionNotice =
+            'Sesi petugas berakhir. Masuk kembali untuk melanjutkan pelayanan.';
         token = null;
         username = null;
         role = 'PENGENDARA';
@@ -327,7 +331,9 @@ class RemoteService extends ChangeNotifier {
         await persistPending();
       }
       if (e.status == 0 || e.status >= 500) online = false;
-      if (e.status == 401) {
+      if (e.status == 401 && token != null) {
+        sessionNotice =
+            'Sesi petugas berakhir. Masuk kembali untuk melanjutkan pelayanan.';
         token = null;
         username = null;
         role = 'PENGENDARA';
@@ -378,6 +384,7 @@ class RemoteService extends ChangeNotifier {
     token = r['token'] as String;
     username = r['username'] as String;
     role = r['role'] as String? ?? 'PETUGAS';
+    sessionNotice = null;
     emit();
     await sync();
   }

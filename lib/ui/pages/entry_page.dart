@@ -107,6 +107,38 @@ class _EntryPageState extends State<EntryPage>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                DropdownButtonFormField<String>(
+                  initialValue: vehicleType,
+                  decoration: const InputDecoration(
+                    labelText: 'Jenis kendaraan',
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'MOBIL', child: Text('Mobil')),
+                    DropdownMenuItem(value: 'MOTOR', child: Text('Motor')),
+                  ],
+                  onChanged: busy
+                      ? null
+                      : (v) => setState(() {
+                          vehicleType = v!;
+                          verified = false;
+                        }),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  key: const Key('entry-plate'),
+                  controller: plate,
+                  enabled: !busy,
+                  textCapitalization: TextCapitalization.characters,
+                  onChanged: (_) => setState(() => verified = false),
+                  decoration: const InputDecoration(
+                    labelText: 'Nomor polisi',
+                    hintText: 'B 1234 AB',
+                    helperText:
+                        'Baca dari kendaraan, lalu cocokkan sebelum diterima.',
+                    helperMaxLines: 3,
+                  ),
+                ),
+                const SizedBox(height: 8),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Gunakan gambar kendaraan'),
@@ -186,38 +218,6 @@ class _EntryPageState extends State<EntryPage>
                   ),
                   const SizedBox(height: 20),
                 ],
-                DropdownButtonFormField<String>(
-                  initialValue: vehicleType,
-                  decoration: const InputDecoration(
-                    labelText: 'Jenis kendaraan',
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'MOBIL', child: Text('Mobil')),
-                    DropdownMenuItem(value: 'MOTOR', child: Text('Motor')),
-                  ],
-                  onChanged: busy
-                      ? null
-                      : (v) => setState(() {
-                          vehicleType = v!;
-                          verified = false;
-                        }),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  key: const Key('entry-plate'),
-                  controller: plate,
-                  enabled: !busy,
-                  textCapitalization: TextCapitalization.characters,
-                  onChanged: (_) => setState(() => verified = false),
-                  decoration: const InputDecoration(
-                    labelText: 'Nomor polisi hasil pembacaan',
-                    hintText: 'B 1234 AB',
-                    helperText:
-                        'Tidak memakai OCR. Petugas membaca dan mengoreksi nopol.',
-                    helperMaxLines: 3,
-                  ),
-                ),
-                const SizedBox(height: 8),
                 if (!manual)
                   CheckboxListTile(
                     contentPadding: EdgeInsets.zero,
@@ -246,6 +246,7 @@ class _EntryPageState extends State<EntryPage>
                           !s.online ||
                           (!manual && (photo == null || !readable)) ||
                           !verified ||
+                          plate.text.trim().isEmpty ||
                           s.capacity?['full'] == true
                       ? null
                       : save,
@@ -259,10 +260,11 @@ class _EntryPageState extends State<EntryPage>
                   ),
                 ),
                 const SizedBox(height: 12),
-                const Text(
-                  'Gambar hanya digunakan untuk verifikasi saat ini dan tidak dikirim atau disimpan permanen.',
-                  style: TextStyle(color: AppColors.muted, fontSize: 12),
-                ),
+                if (!manual)
+                  const Text(
+                    'Gambar hanya digunakan untuk verifikasi saat ini dan tidak dikirim atau disimpan permanen.',
+                    style: TextStyle(color: AppColors.muted, fontSize: 12),
+                  ),
               ],
             ),
           ),

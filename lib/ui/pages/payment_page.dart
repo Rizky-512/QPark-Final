@@ -81,7 +81,7 @@ class _PaymentPageState extends State<PaymentPage> {
       padding: const EdgeInsets.all(12),
       child: QrImageView(
         data: value,
-        size: 210,
+        size: (MediaQuery.sizeOf(context).width - 112).clamp(140.0, 210.0),
         gapless: true,
         backgroundColor: Colors.white,
         semanticsLabel: 'Kode QR QPark',
@@ -97,18 +97,23 @@ class _PaymentPageState extends State<PaymentPage> {
       ready = false;
     }
     if (s == null) {
-      return const Column(
+      return Column(
         children: [
-          PageHeading(
+          const PageHeading(
             'Tiket & pembayaran',
             'Pilih nopol yang telah dicatat petugas.',
           ),
-          SurfaceCard(
+          const SurfaceCard(
             child: EmptyState(
               title: 'Belum ada tiket aktif',
               description:
                   'Simpan dan pilih nopol pada Beranda. Tiket muncul setelah kendaraan masuk diverifikasi.',
             ),
+          ),
+          FilledButton.icon(
+            onPressed: () => widget.args.navigate(0),
+            icon: const Icon(Icons.directions_car_outlined),
+            label: const Text('Pilih kendaraan'),
           ),
         ],
       );
@@ -291,19 +296,36 @@ class _PaymentPageState extends State<PaymentPage> {
                               : () => pay(current, 'SUCCESS'),
                           child: const Text('Simulasi berhasil'),
                         ),
-                        OutlinedButton(
-                          onPressed:
-                              busy || !service.online || !AppConfig.simulation
-                              ? null
-                              : () => pay(current, 'FAILED'),
-                          child: const Text('Gagal'),
-                        ),
-                        OutlinedButton(
-                          onPressed:
-                              busy || !service.online || !AppConfig.simulation
-                              ? null
-                              : () => pay(current, 'PENDING'),
-                          child: const Text('Menunggu'),
+                        ExpansionTile(
+                          key: const PageStorageKey('payment-scenarios'),
+                          tilePadding: EdgeInsets.zero,
+                          title: const Text('Skenario demo lainnya'),
+                          children: [
+                            Wrap(
+                              spacing: 12,
+                              runSpacing: 12,
+                              children: [
+                                OutlinedButton(
+                                  onPressed:
+                                      busy ||
+                                          !service.online ||
+                                          !AppConfig.simulation
+                                      ? null
+                                      : () => pay(current, 'FAILED'),
+                                  child: const Text('Gagal'),
+                                ),
+                                OutlinedButton(
+                                  onPressed:
+                                      busy ||
+                                          !service.online ||
+                                          !AppConfig.simulation
+                                      ? null
+                                      : () => pay(current, 'PENDING'),
+                                  child: const Text('Menunggu'),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ],
                     ),
