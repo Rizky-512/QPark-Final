@@ -90,6 +90,10 @@ Backend menggunakan pustaka standar Python dan SQLite. Build web menyalin render
 
 Android: jalankan server kemudian `flutter run --dart-define=API_BASE_URL=http://10.0.2.2:7357` untuk emulator. APK release memakai alamat server HTTPS: `flutter build apk --release --dart-define=API_BASE_URL=https://ALAMAT_SERVER`. SDK Android diperlukan; APK tidak disertakan. iOS memerlukan macOS/Xcode/signing.
 
+Untuk APK dengan backend Supabase, gunakan `flutter build apk --debug --dart-define-from-file=dart_defines.json`. Hasilnya berada di `build/app/outputs/flutter-apk/app-debug.apk`; konfigurasi lokal tidak perlu dimasukkan ke Git. Ini APK pengujian, bukan paket bertanda tangan untuk distribusi Play Store.
+
+Jika build Android berhenti pada `compileDebugJavaWithJavac` dengan pesan `Cannot query the value of this provider because it has no value available`, jalankan `flutter doctor -v` terlebih dahulu. Pada komputer pengembangan QPark, SDK Platform 36 tercatat terpasang tetapi `platforms/android-36/android.jar` dan `core-for-system-modules.jar` hilang. Memasang ulang platform SDK memulihkan berkas tersebut. Periksa kelengkapan SDK sebelum mengganti versi Gradle atau Kotlin. Gunakan Android Studio SDK Manager untuk memasang ulang **Android SDK Platform 36**, atau pindahkan instalasi platform yang tidak lengkap ke cadangan di luar direktori SDK lalu jalankan `sdkmanager "platforms;android-36"` dari Android SDK Command-line Tools. Jangan menghapus seluruh SDK atau data aplikasi untuk memperbaiki paket platform ini.
+
 `docs/PERUBAHAN_V4.md` menjelaskan perubahan kebutuhan terhadap SRS sebelumnya. `docs/HASIL_PENGUJIAN.md` mencatat hasil nyata dan batas pengujian. Dokumentasi lama berada di `docs/legacy_v2` dan `docs/legacy_v3`.
 
 Smoke test browser opsional untuk developer: pasang Node.js dan Playwright (`npm install --no-save playwright` serta `npx playwright install chromium`), lalu `node scripts/browser_smoke.cjs`. Tes memakai database sementara dan port 7367; `PYTHON`, `QPARK_TEST_PORT`, dan `PLAYWRIGHT_CHROMIUM_EXECUTABLE` dapat dikonfigurasi. Node/Playwright tidak diperlukan untuk menjalankan aplikasi biasa.
