@@ -15,6 +15,21 @@ Jika Gemini belum aktif/gagal, prediksi regresi dan grafik tetap berjalan.
 
 ## Step by step memasang API
 
+Jika halaman menampilkan "Supabase menolak permintaan", jalankan
+`supabase/migrations/202610290004_fix_forecast_column_reference.sql` di SQL Editor
+terlebih dahulu. Perbaikan ini mengganti fungsi analisis dengan versi lengkap yang
+tidak memiliki benturan variabel/kolom `arrivals`; data transaksi tidak dihapus.
+Untuk database QPark yang sudah memiliki backend dasar, file 004 sudah mencakup
+definisi prediksi dari 001 dan 002. Uji dengan:
+
+```sql
+select public.qpark_analytics('{}'::jsonb, now())->'forecast'->>'version' as versi_model;
+```
+
+Hasil yang diharapkan: `2`. Perbaikan sudah diuji dengan PostgreSQL lokal melalui
+PGlite: versi 002 mereproduksi error kolom ambigu, versi 004 berhasil menghitung
+kunjungan, komposisi kendaraan, serta pasangan fitur/target termasuk keluar fisik.
+
 ### 1. Siapkan key dan model
 
 Buka https://aistudio.google.com/apikey. Buat/pilih API key Google untuk proyek Anda.
@@ -43,6 +58,9 @@ buka SQL Editor, salin seluruh isi satu file, klik Run, kemudian lanjut berikutn
 2. `supabase/migrations/202610290002_supervised_forecast.sql` untuk dataset model baru.
 3. `supabase/migrations/202610290003_ai_explanation.sql` untuk akses admin dan pembatasan
    panggilan AI satu kali per menit per admin.
+4. `supabase/migrations/202610290004_fix_forecast_column_reference.sql` untuk perbaikan
+   benturan nama kolom. Jangan menjalankan ulang 001/002 sesudah 004 karena akan
+   mengembalikan definisi lama yang bermasalah.
 
 Jika seluruh migrasi dikelola dengan CLI, gunakan db push pada langkah berikut.
 Jangan menandai migrasi manual sebagai terpasang tanpa memeriksa database.
