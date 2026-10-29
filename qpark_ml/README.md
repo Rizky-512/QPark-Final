@@ -8,8 +8,11 @@ usulan logistic regression dan kartu Flutter dalam dokumen bukan bagian perubaha
 Seluruh berkas aplikasi lama dipertahankan. Tidak ada import modul ini dari server,
 endpoint baru, perubahan UI, navigasi, autentikasi, aturan tarif/pembayaran atau
 migrasi database operasional. Analisis deskriptif tetap memakai `server/analytics.py`.
-CLI adalah titik masuk fitur riset, dijalankan oleh pengelola yang memiliki akses
-filesystem database. Integrasi tampilan membutuhkan persetujuan terpisah.
+CLI adalah titik masuk eksperimen riset ini, dijalankan oleh pengelola yang memiliki
+akses filesystem database. Sejak revisi 29 Oktober 2026, aplikasi juga memiliki
+implementasi linear dan logistic regression tersendiri di halaman Analisis Parkir.
+Lihat [panduan prediksi aplikasi](../docs/PREDIKSI_PARKIR.md) untuk model, batasan,
+dan migrasi backend. Pernyataan ruang lingkup di atas hanya berlaku untuk modul CLI ini.
 
 ## Variabel dan persamaan
 

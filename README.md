@@ -86,6 +86,8 @@ Pada Windows, `jalankan_web.bat`, `jalankan_android.bat`, dan `buka_web.bat` oto
 
 Untuk mengaktifkan Supabase, salin `dart_defines.example.json` menjadi `dart_defines.json`, isi URL dan publishable key, lalu tambahkan `--dart-define-from-file=dart_defines.json` pada perintah run/build. Konfigurasi Google Cloud, redirect URL, skema database, dan checklist produksi dijelaskan di [docs/SUPABASE_MIGRASI.md](docs/SUPABASE_MIGRASI.md).
 
+Prediksi jumlah kendaraan dan peluang keterisian ≥80% pada 30 menit mendatang tersedia di Analisis Parkir. Tidak membutuhkan API AI. Terapkan migrasi backend baru sebelum deploy; lihat [panduan prediksi, model, dan aktivasi](docs/PREDIKSI_PARKIR.md).
+
 Backend menggunakan pustaka standar Python dan SQLite. Build web menyalin renderer, font lokal, dan pustaka pemindai QR. File tema `lib/ui/common.dart` tidak berubah.
 
 Android: jalankan server kemudian `flutter run --dart-define=API_BASE_URL=http://10.0.2.2:7357` untuk emulator. APK release memakai alamat server HTTPS: `flutter build apk --release --dart-define=API_BASE_URL=https://ALAMAT_SERVER`. SDK Android diperlukan; APK tidak disertakan. iOS memerlukan macOS/Xcode/signing.

@@ -3,10 +3,28 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from statistics import mean, median
 import json
+from bisect import bisect_right
 from .rules import RuleError
 
 WIB = timezone(timedelta(hours=7))
 DAYS = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu']
+
+def forecast_observations(store, db, now, coverage):
+    """Completed 30-minute pairs under the current capacity regime only."""
+    capacity = store.settings(db)['capacity']
+    changed = db.execute("SELECT max(server_time) FROM audit WHERE event_type='SETTINGS_CHANGED'").fetchone()[0]
+    start = max(coverage, now - 30 * 86400, changed or coverage)
+    rows = db.execute('SELECT entered_at,exited_at FROM sessions WHERE entered_at<=? AND (exited_at IS NULL OR exited_at>?)', (now, start)).fetchall()
+    entries = sorted(r['entered_at'] for r in rows)
+    exits = sorted(r['exited_at'] for r in rows if r['exited_at'] is not None)
+    def occupied(t):
+        return bisect_right(entries, t) - bisect_right(exits, t)
+    samples = []
+    t = start
+    while t + 1800 <= now:
+        samples.append([occupied(t), occupied(t + 1800)])
+        t += 1800
+    return dict(capacity=capacity, current=occupied(now), target_time=now + 1800, samples=samples)
 
 def parking_analytics(store, db, query, now):
     today = datetime.fromtimestamp(now, WIB).date()
@@ -100,7 +118,7 @@ def parking_analytics(store, db, query, now):
     busiest=max(candidates,key=lambda b:b['occupancy_pct']) if candidates else None
     if busiest:
         busiest=dict(busiest,label=DAYS[busiest['day']])
-    return dict(from_date=str(first),to_date=str(last),timezone='Asia/Jakarta',coverage_start=coverage,coverage_end=end,
+    return dict(forecast=forecast_observations(store, db, now, coverage), from_date=str(first),to_date=str(last),timezone='Asia/Jakarta',coverage_start=coverage,coverage_end=end,
                 arrivals=len(entrants),completed_count=len(durations),excluded_active_count=len(entrants)-len(durations),
                 mean_minutes=round(mean(durations),2) if durations else None,median_minutes=round(median(durations),2) if durations else None,
                 vehicles=vehicles,payments=payments,daily=daily,hourly=hourly,weekdays=weekdays,heatmap=heatmap,

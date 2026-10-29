@@ -30,6 +30,18 @@ class AnalyticsTest(unittest.TestCase):
         for token,status in [('',401),(self.officer,403)]:
             with self.assertRaises(RuleError) as cm:self.report(token=token)
             self.assertEqual(cm.exception.status,status)
+    def test_forecast_pairs_use_physical_exit_and_ignore_report_filter(self):
+        self.session(self.now-1800, state='EXIT_AUTHORIZED')
+        self.session(self.now-3600, self.now)
+        f = self.report()['forecast']
+        self.assertEqual(f['current'], 1)
+        self.assertEqual(f['target_time'], self.now+1800)
+        self.assertEqual(f['samples'][-1], [2, 1])
+        self.assertEqual(f, self.report('2026-10-11','2026-10-12')['forecast'])
+    def test_forecast_restarts_after_settings_change(self):
+        with self.s.connection() as db:
+            self.s.audit(db,'SETTINGS_CHANGED','parking',self.actor,self.now-1800,json.dumps({'capacity':20}))
+        self.assertEqual(len(self.report()['forecast']['samples']), 1)
     def test_known_arrivals_durations_occupancy(self):
         self.session(ts(14,8),ts(14,9));self.session(ts(14,8,30),ts(14,10,30),'MOTOR')
         self.session(ts(13,23),ts(14,1));self.session(ts(14,20))

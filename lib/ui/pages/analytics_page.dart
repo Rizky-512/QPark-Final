@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../data/remote_repository.dart';
+import '../../data/parking_forecast.dart';
 import '../common.dart';
 import '../remote_common.dart';
 
@@ -18,6 +19,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   bool busy = false;
   int days = 7, generation = 0;
   DateTimeRange? custom;
+  ParkingForecast? forecast;
   @override
   void initState() {
     super.initState();
@@ -55,6 +57,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
       busy = true;
       error = null;
       data = null;
+      forecast = null;
     });
     try {
       final r = await s.repository.request(
@@ -63,7 +66,12 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
         token: token,
       );
       if (mounted && request == generation && token == s.token) {
-        setState(() => data = r);
+        setState(() {
+          data = r;
+          if (r['forecast'] is Map<String, dynamic>) {
+            forecast = ParkingForecast(r['forecast'] as Json);
+          }
+        });
       }
     } catch (e) {
       if (mounted && request == generation) {
@@ -77,19 +85,30 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   }
 
   Future<void> pick() async {
-    final result = await showDateRangePicker(
+    final start = await showDatePicker(
       context: context,
       firstDate: DateTime(2000),
       lastDate: today,
-      initialDateRange: custom,
-      helpText: 'Pilih periode (maksimal 366 hari)',
+      initialDate: custom?.start ?? today.subtract(Duration(days: days - 1)),
+      helpText: '1 dari 2: Pilih tanggal mulai',
     );
-    if (!mounted || result == null) return;
-    if (result.end.difference(result.start).inDays >= 366) {
-      showMessage(context, 'Pilih maksimal 366 hari.', error: true);
-      return;
-    }
-    custom = result;
+    if (!mounted || start == null) return;
+    final limit = start.add(const Duration(days: 365));
+    final last = limit.isBefore(today) ? limit : today;
+    final previousEnd = custom?.end ?? today;
+    final end = await showDatePicker(
+      context: context,
+      firstDate: start,
+      lastDate: last,
+      initialDate: previousEnd.isBefore(start)
+          ? start
+          : previousEnd.isAfter(last)
+          ? last
+          : previousEnd,
+      helpText: '2 dari 2: Pilih tanggal akhir (maks. 366 hari)',
+    );
+    if (!mounted || end == null) return;
+    custom = DateTimeRange(start: start, end: end);
     await load();
   }
 
@@ -230,6 +249,76 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     );
   }
 
+  Widget forecastCard() {
+    final f = forecast;
+    if (f == null) {
+      return card(
+        'Perkiraan 30 menit mendatang',
+        const Text(
+          'Data prediksi belum tersedia. Backend perlu diperbarui untuk mengaktifkan fitur ini.',
+        ),
+      );
+    }
+    final probability = f.probability;
+    return card(
+      'Apakah parkir akan hampir penuh?',
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Perkiraan pada ${wib(f.targetTime)}',
+            style: const TextStyle(color: AppColors.muted),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            probability == null
+                ? 'Peluang belum dapat dihitung'
+                : '${(probability * 100).toStringAsFixed(0)}% peluang hampir penuh',
+            style: const TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.w800,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Hampir penuh berarti sedikitnya ${(f.capacity * .8).ceil()} dari ${f.capacity} tempat terisi (80%) pada waktu tersebut.',
+          ),
+          if (probability != null) ...[
+            const SizedBox(height: 16),
+            AnalysisBars(
+              labels: const ['Peluang ≥80% terisi', 'Peluang <80% terisi'],
+              values: [probability * 100, (1 - probability) * 100],
+              percent: true,
+            ),
+            const Text(
+              'Persentase di atas adalah peluang kejadian, bukan persentase tempat yang terisi.',
+            ),
+          ] else ...[
+            const SizedBox(height: 8),
+            const Text(
+              'Butuh minimal 48 pengamatan yang bervariasi, termasuk 10 kejadian hampir penuh dan 10 kejadian di bawah 80%. Terus catat kendaraan masuk dan keluar.',
+            ),
+          ],
+          const Divider(height: 32),
+          Text(
+            f.predicted == null
+                ? 'Perkiraan jumlah kendaraan belum tersedia'
+                : 'Diperkirakan ${f.predicted!.round()} kendaraan berada di area',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 12),
+          AnalysisBars(
+            labels: const ['Sekarang', '30 menit lagi', 'Kapasitas'],
+            values: [f.current.toDouble(), f.predicted, f.capacity.toDouble()],
+          ),
+        ],
+      ),
+      note:
+          'Regresi linear memperkirakan jumlah seluruh kendaraan di area, termasuk yang akan masuk. Regresi logistik memperkirakan peluang keterisian mencapai ≥80%. Keduanya belajar dari hubungan jumlah kendaraan sekarang dan 30 menit sesudahnya. Menggunakan ${f.samples} pasangan pengamatan dari maksimal 30 hari terakhir, terpisah dari filter laporan. Model awal ini belum divalidasi untuk akurasi operasional; hasil bukan kepastian. Tekan muat ulang untuk memperbarui.',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final d = data;
@@ -290,6 +379,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             style: const TextStyle(fontSize: 12, color: AppColors.muted),
           ),
           const SizedBox(height: 20),
+          forecastCard(),
           Wrap(
             spacing: 12,
             runSpacing: 12,
