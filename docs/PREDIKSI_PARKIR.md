@@ -1,63 +1,128 @@
-# Prediksi parkir 30 menit mendatang
+﻿# Prediksi parkir dan pemasangan API Gemini
 
-Halaman Analisis Parkir (admin) menampilkan peluang jumlah kendaraan mencapai
-sedikitnya 80% kapasitas tepat 30 menit setelah laporan dimuat, serta perkiraan
-jumlah seluruh kendaraan pada waktu tersebut. Termasuk kendaraan baru yang masuk;
-bukan hanya kendaraan saat ini yang belum keluar. Tombol muat ulang memperbarui waktu.
+Halaman Analisis kini berisi prediksi 30 menit, dua ringkasan kunjungan, pie chart
+motor/mobil dengan persentase, dan grafik jam kedatangan. Detail model dan tanggal
+ada di bagian yang bisa dibuka. Kalender dapat berpindah bulan dan tahun.
 
-## Model Fundamen Sains Data
+## Peran supervised learning dan Gemini
 
-Backend membentuk pasangan N(t), N(t+30 menit) setiap 30 menit dari waktu masuk
-dan keluar fisik, maksimal 30 hari terakhir. Kendaraan yang sudah membayar tetapi
-belum keluar tetap dihitung. Hanya pasangan yang target waktunya sudah teramati
-yang dipakai. Filter tanggal berlaku untuk laporan historis, bukan data pelatihan.
-Riwayat dimulai ulang setelah perubahan pengaturan agar kapasitas tidak tercampur.
+Linear regression mempelajari jumlah seluruh kendaraan tepat 30 menit mendatang,
+termasuk kendaraan baru yang masuk. Logistic regression mempelajari peluang jumlah
+itu mencapai minimal 80% kapasitas. Keduanya dilatih dari riwayat masuk/keluar.
+Gemini menjelaskan hasil model melalui tombol **Jelaskan dengan AI**, maksimal tiga
+kalimat sederhana. API tidak membuat angka prediksi atau menggantikan data latih.
+Jika Gemini belum aktif/gagal, prediksi regresi dan grafik tetap berjalan.
 
-Flutter menghitung dua model di `lib/data/parking_forecast.dart`:
+## Step by step memasang API
 
-- Regresi linear OLS: N(t+30) = intercept + slope × N(t). Hasil tampilan dibatasi
-  antara nol dan kapasitas, lalu dibulatkan menjadi kendaraan.
-- Regresi logistik: sigmoid(intercept + weight × N(t) terstandardisasi).
-  Label positif adalah N(t+30) >= ceil(0,8 × kapasitas). Optimisasi gradient descent
-  600 iterasi, learning rate 0,1 dan regularisasi L2 0,01 pada slope.
+### 1. Siapkan key dan model
 
-Minimal 48 pasangan dengan variasi N(t). Logistik juga membutuhkan masing-masing
-10 label positif dan negatif. Bila syarat tidak terpenuhi, UI menunjukkan alasan,
-bukan angka peluang buatan. Grafik peluang berskala 0–100%; grafik jumlah kendaraan
-terpisah. 70% peluang hampir penuh tidak berarti 70% tempat terisi.
+Buka https://aistudio.google.com/apikey. Buat/pilih API key Google untuk proyek Anda.
+Pastikan kuota tersedia dan catat **model ID** teks yang dapat dipakai di AI Studio,
+bukan nama tampilannya. Model sengaja tidak dikunci di kode karena ketersediaannya
+berbeda antar akun dan dapat berubah. Jangan kirim API key ke chat.
 
-Ini model awal satu fitur, belum tervalidasi untuk keputusan operasional. Batas data
-minimum bukan jaminan akurasi. Sebelum penggunaan operasional, evaluasi pada blok waktu
-terakhir yang tidak digunakan melatih: MAE melawan baseline jumlah saat ini untuk linear,
-Brier score dan kalibrasi peluang untuk logistik. Pola jam/hari, acara khusus dan perubahan
-arus kendaraan belum menjadi fitur. Modul riset CLI `qpark_ml` tetap eksperimen terpisah.
+### 2. Masukkan API key di sini
 
-## Aktivasi dan API
+1. Buka **Supabase Dashboard > proyek QPark > Edge Functions > Secrets**.
+2. Tambahkan nama **GEMINI_API_KEY**. Pada Value, tempel API key Google, lalu simpan.
+3. Tambahkan nama **GEMINI_MODEL**. Value adalah model ID yang tersedia di AI Studio,
+   tanpa awalan `models/` dan tanpa akhiran `:generateContent`.
 
-**Tidak perlu API AI, API key AI, atau biaya layanan AI.** Data berasal dari transaksi
-parkir yang sudah tersimpan. Tidak ada nomor polisi dikirim ke model di Flutter;
-payload prediksi hanya berisi jumlah agregat.
+Inilah tempat Anda memberikan API key. Jangan masukkan key Gemini di kode Dart,
+`dart_defines.json`, frontend Vercel, SQL, atau GitHub. Function membaca key melalui
+`Deno.env.get`. SUPABASE_URL dan SUPABASE_SERVICE_ROLE_KEY disediakan otomatis oleh
+runtime Edge Function; jangan salin service role ke aplikasi.
 
-Untuk backend Supabase yang dipakai web:
+### 3. Pasang migrasi database
 
-1. Terapkan seluruh migrasi lama yang belum terpasang, lalu jalankan isi
-   `supabase/migrations/202610290001_parking_forecast.sql` melalui SQL Editor proyek
-   Supabase yang sama. Alternatif untuk proyek CLI yang sudah terhubung: `supabase db push`.
-2. Build dan deploy ulang Flutter web sesuai panduan deployment proyek.
-3. Login admin, buka Analisis Parkir dan muat ulang. Bila backend belum diperbarui,
-   kartu akan meminta pembaruan backend. Bila data belum cukup, kumpulkan transaksi nyata.
+Gunakan proyek Supabase yang sama dengan aplikasi. Jika migrasi lama sudah terpasang,
+buka SQL Editor, salin seluruh isi satu file, klik Run, kemudian lanjut berikutnya:
 
-Untuk backend Python, restart server dengan kode terbaru lalu build ulang Flutter.
-Endpoint tetap `GET /api/admin/analytics`, autentikasi admin tetap berlaku.
-Konfigurasi koneksi aplikasi tetap mengikuti `dart_defines.example.json` dan README.
+1. `supabase/migrations/202610290001_parking_forecast.sql` jika belum pernah dipasang.
+2. `supabase/migrations/202610290002_supervised_forecast.sql` untuk dataset model baru.
+3. `supabase/migrations/202610290003_ai_explanation.sql` untuk akses admin dan pembatasan
+   panggilan AI satu kali per menit per admin.
 
-Jika nanti menambahkan layanan AI eksternal untuk narasi, simpan kunci rahasia hanya
-di environment backend atau Secrets Supabase Edge Function. Jangan taruh kunci rahasia
-di Flutter, `dart_defines.json`, aset web, atau Git; browser dapat membacanya.
-Fitur prediksi saat ini tidak memakai layanan tersebut dan tidak menyediakan kolom API key.
+Jika seluruh migrasi dikelola dengan CLI, gunakan db push pada langkah berikut.
+Jangan menandai migrasi manual sebagai terpasang tanpa memeriksa database.
 
-## Kalender
+### 4. Deploy Edge Function
 
-Pilih tanggal mulai lalu tanggal akhir. Dialog menyediakan panah bulan dan pemilih
-tahun bawaan Flutter. Akhir tidak boleh sebelum awal, melebihi hari ini, atau membuat
-periode lebih dari 366 hari. Membatalkan salah satu dialog mempertahankan filter sebelumnya.
+Buka PowerShell di folder repo, lalu jalankan (gunakan .cmd pada Windows):
+
+```powershell
+npx.cmd supabase login
+npx.cmd supabase link --project-ref PROJECT_REF_ANDA
+# Jalankan hanya bila migrasi dikelola CLI, bukan sudah dipasang manual:
+npx.cmd supabase db push
+npx.cmd supabase functions deploy parking-explain
+```
+
+PROJECT_REF_ANDA adalah bagian sebelum `.supabase.co` pada URL proyek.
+File function ada di `supabase/functions/parking-explain/index.ts` dan `handler.ts`.
+`supabase/config.toml` mengatur verify_jwt=false khusus function ini karena admin
+QPark memakai token sesi sendiri, bukan JWT Supabase Auth. Akses tetap diverifikasi
+oleh RPC qpark_ai_claim: token aktif dan peran ADMIN wajib sebelum memanggil Gemini.
+RPC hanya dapat dipanggil backend dengan service role. Jangan hapus pemeriksaan ini.
+
+### 5. Coba dari aplikasi
+
+1. Tunggu deployment Vercel terbaru selesai, refresh dengan Ctrl+F5, lalu login admin.
+2. Buka Analisis > Muat ulang. Prediksi berada paling atas.
+3. Klik Jelaskan dengan AI. Penjelasan akan muncul di bawah tombol.
+4. Jika belum aktif, periksa Secrets dan deployment function. Jika kuota/model gagal,
+   periksa proyek Google AI Studio. Jika sesi ditolak, login ulang dan cek migrasi AI.
+   Tunggu satu menit sebelum mencoba lagi.
+5. Jika model masih belajar, kumpulkan riwayat yang lengkap dan bervariasi. API key
+   tidak dapat menggantikan riwayat yang kurang atau model yang belum lolos evaluasi.
+
+Vercel melayani `rilis/web`. Build hasil revisi ikut di-push. Untuk perubahan berikutnya,
+`python scripts/build_release.py` membangun web memakai konfigurasi koneksi lokal;
+push hasil rilis bersama sumber. Database dan Edge Function tidak otomatis ter-deploy
+hanya dengan push ke GitHub.
+
+## Implementasi Fundamen Sains Data
+
+Desain mengikuti bagian 3-6 laporan riset yang dilampirkan, menggantikan model satu
+fitur sebelumnya. Implementasi aplikasi: `lib/data/parking_forecast.dart`. Modul CLI
+`qpark_ml` tetap eksperimen OLS terpisah.
+
+- Dataset setiap 15 menit, horizon 30 menit, maksimal 56 hari. Fitur: N(t), jumlah
+  masuk/keluar 30 menit terakhir, sin/cos jam WIB, indikator Selasa-Minggu.
+- Target linear: N(t+30m). Label logistik: 1 jika target >= ceil(0,8 x kapasitas),
+  selain itu 0. Pembayaran tidak mengosongkan tempat; gunakan keluar fisik.
+- Python/Supabase membentuk dataset agregat. Flutter melatih kedua model ketika
+  laporan dimuat. Koefisien dipelajari dari data; bukan konstanta contoh. Belum ada
+  registry model permanen atau pelatihan backend terjadwal pada versi aplikasi ini.
+- Pembagian waktu 60% latih, 20% validasi, 20% uji. Label yang melintasi batas
+  dibuang. Scaler dilatih hanya dari data latih. Tidak ada pengacakan masa depan.
+- Linear: OLS dengan modified Gram-Schmidt, melewati kolom konstan/kolinear.
+  Evaluasi prediksi mentah memakai MAE dan RMSE; hasil tampilan dibatasi 0-kapasitas.
+  Hanya ditampilkan bila MAE lebih baik dari persistence pada validasi dan uji.
+- Logistik: sigmoid, gradient descent 800 iterasi, learning rate 0,05, regularisasi
+  L2 0,01 selain intercept. Minimal 10 positif dan 10 negatif di data latih. Brier
+  score harus lebih baik dari proporsi positif latih pada validasi dan uji.
+  Confusion matrix, precision dan recall juga dihitung pada ambang peluang 0,5.
+- Minimal 48 latih dan masing-masing 12 validasi/uji. Ini pengaman implementasi,
+  bukan jaminan ilmiah. Satu kelas/gagal pembanding menghasilkan status belajar.
+
+Riwayat dimulai ulang setelah pengaturan berubah agar kapasitas tidak tercampur.
+Awal pencatatan belum menjamin tidak ada jeda pencatatan; registry gangguan belum ada.
+Data simulasi bisa dipakai demonstrasi tetapi bukan bukti akurasi operasional.
+Uji prospektif, audit pencatatan, kurva kalibrasi, PR-AUC, analisis akhir pekan dan
+registry model adalah pengembangan lanjutan sebelum penggunaan operasional.
+
+Gemini menerima ringkasan numerik model dari admin terautentikasi, bukan transaksi,
+nopol, atau identitas pengguna. Input dibatasi angka, waktu, kapasitas, dan frekuensi.
+Edge Function tidak melatih ulang model. Teks AI dapat salah; angka kartu regresi
+menjadi acuan. API hanya dipanggil saat tombol ditekan, bukan otomatis saat memuat
+halaman. Backend Python mendukung dataset regresi, sementara fitur Gemini saat ini
+khusus koneksi Supabase.
+
+## Referensi integrasi
+
+- https://ai.google.dev/api/generate-content
+- https://supabase.com/docs/guides/functions/secrets
+- https://supabase.com/docs/guides/functions/deploy
+- https://supabase.com/docs/guides/functions/auth

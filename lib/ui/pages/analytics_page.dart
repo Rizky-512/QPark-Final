@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../data/remote_repository.dart';
 import '../../data/parking_forecast.dart';
+import '../widgets/vehicle_pie.dart';
 import '../common.dart';
 import '../remote_common.dart';
 
@@ -16,7 +17,8 @@ class AnalyticsPage extends StatefulWidget {
 class _AnalyticsPageState extends State<AnalyticsPage> {
   Json? data;
   String? error;
-  bool busy = false;
+  bool busy = false, explaining = false;
+  String? explanation, aiError;
   int days = 7, generation = 0;
   DateTimeRange? custom;
   ParkingForecast? forecast;
@@ -58,6 +60,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
       error = null;
       data = null;
       forecast = null;
+      explanation = null;
+      aiError = null;
+      explaining = false;
     });
     try {
       final r = await s.repository.request(
@@ -176,160 +181,249 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     values: values.map((r) => (r[value] as num?)?.toDouble()).toList(),
     percent: percent,
   );
-  Widget heatmap() {
-    final items = rows('heatmap');
-    const labels = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const SizedBox(width: 42),
-              ...List.generate(
-                24,
-                (h) => SizedBox(
-                  width: 28,
-                  child: Text(
-                    '$h',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 10),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          ...List.generate(
-            7,
-            (d) => Row(
-              children: [
-                SizedBox(width: 42, child: Text(labels[d])),
-                ...List.generate(24, (h) {
-                  final matches = items.where(
-                    (r) => r['day'] == d && r['hour'] == h,
-                  );
-                  final value = matches.isEmpty
-                      ? null
-                      : matches.first['occupancy_pct'] as num?;
-                  final description =
-                      '${labels[d]} $h.00 WIB: ${number(value, suffix: '%')}';
-                  return Tooltip(
-                    message: description,
-                    triggerMode: TooltipTriggerMode.tap,
-                    child: Semantics(
-                      label: description,
-                      child: Container(
-                        width: 26,
-                        height: 26,
-                        margin: const EdgeInsets.all(1),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(4),
-                          color: value == null
-                              ? AppColors.border
-                              : AppColors.primary.withValues(
-                                  alpha:
-                                      0.06 + 0.94 * (value / 100).clamp(0, 1),
-                                ),
-                        ),
-                      ),
-                    ),
-                  );
-                }),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Abu-abu: belum ada pengamatan · Hijau makin pekat: makin terisi',
-            style: TextStyle(fontSize: 12, color: AppColors.muted),
-          ),
-        ],
-      ),
-    );
+  Future<void> explain() async {
+    final f = forecast;
+    final token = widget.args.service.token;
+    if (f == null || token == null) return;
+    final request = generation;
+    setState(() {
+      explaining = true;
+      aiError = null;
+    });
+    try {
+      final text = await widget.args.service.repository.explainForecast({
+        'capacity': f.capacity,
+        'current': f.current,
+        'target_time': f.targetTime,
+        'predicted': f.predicted,
+        'probability': f.probability,
+      }, token: token);
+      if (mounted &&
+          request == generation &&
+          token == widget.args.service.token) {
+        setState(() => explanation = text);
+      }
+    } catch (e) {
+      if (mounted && request == generation) {
+        setState(() => aiError = e.toString());
+      }
+    } finally {
+      if (mounted && request == generation) setState(() => explaining = false);
+    }
   }
 
   Widget forecastCard() {
     final f = forecast;
     if (f == null) {
       return card(
-        'Perkiraan 30 menit mendatang',
+        '30 menit lagi',
         const Text(
-          'Data prediksi belum tersedia. Backend perlu diperbarui untuk mengaktifkan fitur ini.',
+          'Prediksi belum tersedia. Pengelola perlu memperbarui layanan prediksi.',
         ),
       );
     }
     final probability = f.probability;
+    final time = DateTime.fromMillisecondsSinceEpoch(
+      (f.targetTime * 1000).round(),
+      isUtc: true,
+    ).add(const Duration(hours: 7));
+    final clock =
+        '${time.hour.toString().padLeft(2, '0')}.${time.minute.toString().padLeft(2, '0')} WIB';
     return card(
-      'Apakah parkir akan hampir penuh?',
+      'Bagaimana parkir 30 menit lagi?',
       Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Perkiraan pada ${wib(f.targetTime)}',
+            'Perkiraan untuk pukul $clock',
             style: const TextStyle(color: AppColors.muted),
           ),
+          const SizedBox(height: 18),
+          Wrap(
+            spacing: 24,
+            runSpacing: 20,
+            children: [
+              SizedBox(
+                width: 280,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Kendaraan di area'),
+                    Text(
+                      f.predicted == null
+                          ? 'Belum tersedia'
+                          : 'Sekitar ${f.predicted!.round()} kendaraan',
+                      style: const TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    Text(
+                      'Sekarang ${f.current} · Kapasitas ${f.capacity} tempat',
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(
+                width: 280,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Peluang hampir penuh'),
+                    Text(
+                      probability == null
+                          ? 'Masih belajar'
+                          : '${(probability * 100).round()}%',
+                      style: const TextStyle(
+                        fontSize: 36,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    if (probability != null) ...[
+                      LinearProgressIndicator(
+                        value: probability,
+                        minHeight: 10,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                    Text(
+                      'Artinya, peluang ${(.8 * f.capacity).ceil()} tempat atau lebih akan terisi.',
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 16),
-          Text(
-            probability == null
-                ? 'Peluang belum dapat dihitung'
-                : '${(probability * 100).toStringAsFixed(0)}% peluang hampir penuh',
-            style: const TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.w800,
-              color: AppColors.primary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Hampir penuh berarti sedikitnya ${(f.capacity * .8).ceil()} dari ${f.capacity} tempat terisi (80%) pada waktu tersebut.',
-          ),
-          if (probability != null) ...[
-            const SizedBox(height: 16),
+          Text(f.reason),
+          if (f.predicted != null)
             AnalysisBars(
-              labels: const ['Peluang ≥80% terisi', 'Peluang <80% terisi'],
-              values: [probability * 100, (1 - probability) * 100],
-              percent: true,
+              labels: const ['Sekarang', '30 menit lagi'],
+              values: [f.current.toDouble(), f.predicted],
             ),
-            const Text(
-              'Persentase di atas adalah peluang kejadian, bukan persentase tempat yang terisi.',
-            ),
-          ] else ...[
-            const SizedBox(height: 8),
-            const Text(
-              'Butuh minimal 48 pengamatan yang bervariasi, termasuk 10 kejadian hampir penuh dan 10 kejadian di bawah 80%. Terus catat kendaraan masuk dan keluar.',
-            ),
-          ],
-          const Divider(height: 32),
-          Text(
-            f.predicted == null
-                ? 'Perkiraan jumlah kendaraan belum tersedia'
-                : 'Diperkirakan ${f.predicted!.round()} kendaraan berada di area',
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+          const SizedBox(height: 8),
+          const Text(
+            'Peluang hampir penuh berbeda dari persentase tempat terisi.',
+            style: TextStyle(fontSize: 12, color: AppColors.muted),
           ),
+          const Divider(height: 28),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: explaining || explanation != null ? null : explain,
+              icon: const Icon(Icons.auto_awesome_outlined),
+              label: Text(
+                explaining ? 'Menyiapkan penjelasan...' : 'Jelaskan dengan AI',
+              ),
+            ),
+          ),
+          const Text(
+            'Gemini menjelaskan hasil model dalam bahasa sederhana.',
+            style: TextStyle(fontSize: 12, color: AppColors.muted),
+          ),
+          if (explanation != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Text(explanation!),
+            ),
+          if (aiError != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Text(
+                aiError!,
+                style: const TextStyle(color: AppColors.danger),
+              ),
+            ),
           const SizedBox(height: 12),
-          AnalysisBars(
-            labels: const ['Sekarang', '30 menit lagi', 'Kapasitas'],
-            values: [f.current.toDouble(), f.predicted, f.capacity.toDouble()],
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            title: const Text('Tentang model & hasil pengujian'),
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text(
+                      'Supervised learning: model belajar dari contoh riwayat yang sudah diketahui hasilnya. Regresi linear memprediksi jumlah kendaraan; regresi logistik memprediksi peluang minimal 80% tempat terisi. Gemini hanya menjelaskan hasil, tidak menentukan angka.',
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Masukan: jumlah kendaraan, masuk dan keluar 30 menit terakhir, jam, dan hari. Termasuk kendaraan baru yang akan masuk. Prediksi selalu dihitung dari waktu pembaruan, bukan tanggal laporan.',
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${f.samples} contoh · ${f.trainCount} latih · ${f.validationCount} validasi · ${f.testCount} uji. Data dibagi berurutan menurut waktu; label yang melintasi batas dibuang.',
+                    ),
+                    if (f.testMetrics.isNotEmpty) ...[
+                      Text(
+                        'Kesalahan jumlah pada data uji: ${number(f.testMetrics['mae'])} kendaraan (pembanding: ${number(f.testMetrics['baseline_mae'])}).',
+                      ),
+                      if (f.testMetrics['brier'] != null)
+                        Text(
+                          'Brier score peluang: ${f.testMetrics['brier']!.toStringAsFixed(3)} (pembanding: ${f.testMetrics['baseline_brier']!.toStringAsFixed(3)}). Lebih kecil lebih baik; bukan persentase akurasi.',
+                        ),
+                    ],
+                    if (f.logisticReason != null) Text(f.logisticReason!),
+                    const Text(
+                      'Hasil hanya ditampilkan jika mengungguli pembanding pada validasi dan uji. Data yang tidak lengkap atau simulasi belum membuktikan akurasi di lapangan.',
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
       note:
-          'Regresi linear memperkirakan jumlah seluruh kendaraan di area, termasuk yang akan masuk. Regresi logistik memperkirakan peluang keterisian mencapai ≥80%. Keduanya belajar dari hubungan jumlah kendaraan sekarang dan 30 menit sesudahnya. Menggunakan ${f.samples} pasangan pengamatan dari maksimal 30 hari terakhir, terpisah dari filter laporan. Model awal ini belum divalidasi untuk akurasi operasional; hasil bukan kepastian. Tekan muat ulang untuk memperbarui.',
+          'Perkiraan dari maksimal 8 minggu riwayat terakhir. Muat ulang untuk memperbarui.',
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final d = data;
-    final busiest = d?['busiest'] as Json?;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const PageHeading(
           'Analisis Parkir',
-          'Pola penggunaan area berdasarkan transaksi yang tercatat.',
+          'Lihat perkiraan kondisi parkir dan ringkasan kunjungan.',
         ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: OutlinedButton.icon(
+            onPressed: busy ? null : load,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Muat ulang'),
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (busy) const LinearProgressIndicator(),
+        if (error != null)
+          SurfaceCard(
+            child: Text(
+              error!,
+              style: const TextStyle(color: AppColors.danger),
+            ),
+          ),
+        if (d != null) ...[
+          Text(
+            'Diperbarui ${wib(d['server_time'])}',
+            style: const TextStyle(fontSize: 12, color: AppColors.muted),
+          ),
+          const SizedBox(height: 16),
+          forecastCard(),
+        ],
+        const SizedBox(height: 8),
+        Text(
+          'Ringkasan kunjungan',
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+        const SizedBox(height: 12),
         Wrap(
           spacing: 8,
           runSpacing: 8,
@@ -352,153 +446,70 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
               icon: const Icon(Icons.date_range),
               label: const Text('Pilih tanggal'),
             ),
-            IconButton(
-              tooltip: 'Muat ulang analisis',
-              onPressed: busy ? null : load,
-              icon: const Icon(Icons.refresh),
-            ),
           ],
         ),
         const SizedBox(height: 16),
-        if (busy) const LinearProgressIndicator(),
-        if (error != null)
-          SurfaceCard(
-            child: Text(
-              error!,
-              style: const TextStyle(color: AppColors.danger),
-            ),
-          ),
         if (d != null) ...[
           Text(
-            '${d['from_date']} — ${d['to_date']} · WIB',
-            style: const TextStyle(fontWeight: FontWeight.w700),
+            '${d['from_date']} – ${d['to_date']}',
+            style: const TextStyle(color: AppColors.muted),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Diperbarui ${wib(d['server_time'])}',
-            style: const TextStyle(fontSize: 12, color: AppColors.muted),
-          ),
-          const SizedBox(height: 20),
-          forecastCard(),
+          const SizedBox(height: 16),
           Wrap(
             spacing: 12,
             runSpacing: 12,
             children: [
               metric(
-                'Kendaraan masuk',
+                'Total kunjungan',
                 '${d['arrivals']}',
-                'Sesi dengan waktu masuk dalam periode',
+                'Kendaraan masuk selama periode ini',
               ),
               metric(
-                'Rata-rata durasi',
+                'Rata-rata lama parkir',
                 number(d['mean_minutes'], suffix: ' menit'),
-                '${d['completed_count']} sesi selesai',
-              ),
-              metric(
-                'Median durasi',
-                number(d['median_minutes'], suffix: ' menit'),
-                '${d['excluded_active_count']} sesi belum selesai dikecualikan',
-              ),
-              metric(
-                'Rata-rata keterisian',
-                number(d['occupancy_pct'], suffix: '%'),
-                'Puncak ${d['peak_occupied']} kendaraan sekaligus',
+                'Dihitung dari kendaraan yang sudah keluar',
               ),
             ],
           ),
           const SizedBox(height: 20),
-          if (d['arrivals'] == 0)
-            const Padding(
-              padding: EdgeInsets.only(bottom: 16),
-              child: Text(
-                'Belum ada kendaraan masuk pada periode ini. Keterisian dapat berasal dari kendaraan yang masuk sebelumnya.',
-              ),
-            ),
           card(
-            'Kendaraan masuk menurut jam',
+            'Lebih banyak motor atau mobil?',
+            VehiclePie(
+              cars: (d['vehicles']['MOBIL'] as num).toInt(),
+              motors: (d['vehicles']['MOTOR'] as num).toInt(),
+            ),
+            note: 'Persentase dari seluruh kunjungan dalam periode terpilih.',
+          ),
+          card(
+            'Jam kedatangan paling ramai',
             bars(rows('hourly'), 'hour', 'arrivals'),
             note:
-                'Jumlah kedatangan pada tiap jam (00–23 WIB), digabung selama periode. Geser grafik untuk melihat seluruh jam.',
+                'Angka di atas batang menunjukkan jumlah kendaraan masuk. Jam dalam WIB; geser untuk melihat jam lainnya.',
           ),
-          card(
-            'Kendaraan masuk menurut tanggal',
-            bars(
-              rows('daily')
-                  .map(
-                    (r) => {...r, 'label': (r['date'] as String).substring(5)},
-                  )
-                  .toList(),
-              'label',
-              'arrivals',
-            ),
-            note:
-                'Sumbu tanggal: bulan-hari. Jumlah sesi masuk, bukan jumlah nopol unik.',
-          ),
-          card(
-            'Kendaraan masuk menurut hari',
-            bars(rows('weekdays'), 'label', 'arrivals'),
-            note: 'Total kedatangan setiap nama hari dalam periode.',
-          ),
-          card(
-            'Penggunaan mobil dan motor',
-            AnalysisBars(
-              labels: const ['Mobil', 'Motor'],
-              values: [
-                (d['vehicles']['MOBIL'] as num).toDouble(),
-                (d['vehicles']['MOTOR'] as num).toDouble(),
-              ],
-            ),
-            note:
-                'Perbandingan jumlah sesi masuk, bukan durasi atau luas kendaraan.',
-          ),
-          card(
-            'Pembayaran QR dan manual',
-            AnalysisBars(
-              labels: const ['QR', 'Manual'],
-              values: [
-                (d['payments']['QR_SIMULASI']['count'] as num).toDouble(),
-                (d['payments']['MANUAL']['count'] as num).toDouble(),
-              ],
-            ),
-            note:
-                'Jumlah tagihan lunas berdasarkan waktu pembayaran; penalti dihitung sebagai tagihan terpisah. QR ${money((d['payments']['QR_SIMULASI']['amount'] as num).toInt())} · Manual ${money((d['payments']['MANUAL']['amount'] as num).toInt())}.',
-          ),
-          card(
-            'Keterisian area menurut waktu',
-            bars(
-              rows('daily')
-                  .map(
-                    (r) => {...r, 'label': (r['date'] as String).substring(5)},
-                  )
-                  .toList(),
-              'label',
-              'occupancy_pct',
-              percent: true,
-            ),
-            note:
-                'Rata-rata persentase keterisian berbobot waktu. Kendaraan dihitung sampai benar-benar keluar, termasuk yang sudah membayar. — berarti belum ada waktu pengamatan.',
-          ),
-          card(
-            'Hari dan jam paling terisi',
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  busiest == null
-                      ? 'Belum ada keterisian untuk dibandingkan.'
-                      : '${busiest['label']} pukul ${busiest['hour']}.00–${(busiest['hour'] as int) + 1}.00 WIB · ${number(busiest['occupancy_pct'], suffix: '%')}',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
+          ExpansionTile(
+            title: const Text('Lihat rincian kunjungan'),
+            children: [
+              card(
+                'Kunjungan per tanggal',
+                bars(
+                  rows('daily')
+                      .map(
+                        (r) => {
+                          ...r,
+                          'label': (r['date'] as String).substring(5, 10),
+                        },
+                      )
+                      .toList(),
+                  'label',
+                  'arrivals',
                 ),
-                const SizedBox(height: 16),
-                heatmap(),
-              ],
-            ),
-            note:
-                'Perbandingan rata-rata keterisian per kombinasi hari dan jam yang teramati. Jika seri, ditampilkan yang lebih awal dalam urutan Senin–Minggu. Ini ringkasan historis, bukan prediksi.',
-          ),
-          const Text(
-            'Durasi memakai sesi yang masuk pada periode terpilih dan sudah selesai saat laporan dibuka, termasuk yang keluar setelah akhir periode. Sesi aktif tidak masuk rata-rata/median. Hari ini dihitung sampai waktu pembaruan. Pengamatan dimulai sejak data sistem tersedia.',
-            style: TextStyle(color: AppColors.muted, height: 1.6, fontSize: 12),
+                note: 'Tanggal ditulis bulan-hari.',
+              ),
+              card(
+                'Kunjungan per hari',
+                bars(rows('weekdays'), 'label', 'arrivals'),
+              ),
+            ],
           ),
         ],
       ],

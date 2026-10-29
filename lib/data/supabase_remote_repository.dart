@@ -12,6 +12,36 @@ class SupabaseRemoteRepository extends RemoteRepository {
   final SupabaseClient supabase;
 
   @override
+  Future<String> explainForecast(Json forecast, {required String token}) async {
+    try {
+      final response = await supabase.functions
+          .invoke(
+            'parking-explain',
+            body: {'token': token, 'forecast': forecast},
+          )
+          .timeout(const Duration(seconds: 35));
+      final body = response.data;
+      if (body is Map && body['explanation'] is String) {
+        return body['explanation'] as String;
+      }
+      throw const ApiError('Penjelasan AI belum tersedia.', 'ai', 502);
+    } on FunctionException catch (e) {
+      final details = e.details;
+      throw ApiError(
+        details is Map && details['error'] is String
+            ? details['error'] as String
+            : 'Fitur Gemini belum aktif. Periksa deployment Edge Function dan Secrets Supabase.',
+        'ai',
+        e.status,
+      );
+    } on ApiError {
+      rethrow;
+    } catch (_) {
+      throw const ApiError('Koneksi AI terputus. Coba lagi nanti.', 'ai', 503);
+    }
+  }
+
+  @override
   Future<Json> request(
     String method,
     String path, {

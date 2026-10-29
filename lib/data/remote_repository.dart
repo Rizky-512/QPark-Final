@@ -18,6 +18,14 @@ class RemoteRepository {
     : client = client ?? http.Client();
   final String baseUrl;
   final http.Client client;
+  Future<String> explainForecast(Json forecast, {required String token}) async {
+    throw const ApiError(
+      'Penjelasan Gemini tersedia pada koneksi Supabase. Prediksi regresi tetap berjalan.',
+      'unsupported',
+      503,
+    );
+  }
+
   Future<Json> request(
     String method,
     String path, {

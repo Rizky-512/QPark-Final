@@ -13,18 +13,21 @@ def forecast_observations(store, db, now, coverage):
     """Completed 30-minute pairs under the current capacity regime only."""
     capacity = store.settings(db)['capacity']
     changed = db.execute("SELECT max(server_time) FROM audit WHERE event_type='SETTINGS_CHANGED'").fetchone()[0]
-    start = max(coverage, now - 30 * 86400, changed or coverage)
+    start = max(coverage, now - 56 * 86400, changed or coverage)
     rows = db.execute('SELECT entered_at,exited_at FROM sessions WHERE entered_at<=? AND (exited_at IS NULL OR exited_at>?)', (now, start)).fetchall()
     entries = sorted(r['entered_at'] for r in rows)
     exits = sorted(r['exited_at'] for r in rows if r['exited_at'] is not None)
     def occupied(t):
         return bisect_right(entries, t) - bisect_right(exits, t)
     samples = []
-    t = start
+    def flow(times, t):
+        return bisect_right(times, t) - bisect_right(times, t - 1800)
+    t = start + 1800
     while t + 1800 <= now:
-        samples.append([occupied(t), occupied(t + 1800)])
-        t += 1800
-    return dict(capacity=capacity, current=occupied(now), target_time=now + 1800, samples=samples)
+        samples.append([occupied(t), occupied(t + 1800), flow(entries,t), flow(exits,t), t])
+        t += 900
+    return dict(version=2, capacity=capacity, current=occupied(now), target_time=now + 1800,
+                live=[occupied(now),flow(entries,now),flow(exits,now),now], samples=samples)
 
 def parking_analytics(store, db, query, now):
     today = datetime.fromtimestamp(now, WIB).date()

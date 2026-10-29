@@ -86,7 +86,7 @@ Pada Windows, `jalankan_web.bat`, `jalankan_android.bat`, dan `buka_web.bat` oto
 
 Untuk mengaktifkan Supabase, salin `dart_defines.example.json` menjadi `dart_defines.json`, isi URL dan publishable key, lalu tambahkan `--dart-define-from-file=dart_defines.json` pada perintah run/build. Konfigurasi Google Cloud, redirect URL, skema database, dan checklist produksi dijelaskan di [docs/SUPABASE_MIGRASI.md](docs/SUPABASE_MIGRASI.md).
 
-Prediksi jumlah kendaraan dan peluang keterisian ≥80% pada 30 menit mendatang tersedia di Analisis Parkir. Tidak membutuhkan API AI. Terapkan migrasi backend baru sebelum deploy; lihat [panduan prediksi, model, dan aktivasi](docs/PREDIKSI_PARKIR.md).
+Analisis Parkir kini menampilkan prediksi supervised learning 30 menit, ringkasan sederhana, dan pie chart motor/mobil. Tombol **Jelaskan dengan AI** memakai Gemini untuk menjelaskan keluaran regresi. Masukkan `GEMINI_API_KEY` dan `GEMINI_MODEL` di **Supabase → Edge Functions → Secrets**, lalu pasang migrasi dan deploy function sesuai [panduan langkah demi langkah](docs/PREDIKSI_PARKIR.md). Regresi tetap bekerja tanpa Gemini. Vercel melayani hasil build di `rilis/web`.
 
 Backend menggunakan pustaka standar Python dan SQLite. Build web menyalin renderer, font lokal, dan pustaka pemindai QR. File tema `lib/ui/common.dart` tidak berubah.
 
