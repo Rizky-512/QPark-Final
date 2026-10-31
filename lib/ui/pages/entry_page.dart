@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../common.dart';
 import '../remote_common.dart';
+import '../widgets/customer_link.dart';
 
 class EntryPage extends StatefulWidget {
   const EntryPage({super.key, required this.args});
@@ -269,6 +270,8 @@ class _EntryPageState extends State<EntryPage>
             ),
           ),
         ),
+        const SizedBox(height: 24),
+        StaffCustomerLink(service: s),
       ],
     );
   }

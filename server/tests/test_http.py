@@ -20,14 +20,19 @@ class HTTPTest(unittest.TestCase):
         self.server=create_server(self.store,port=0,directory=Path(self.tmp.name))
         self.thread=threading.Thread(target=self.server.serve_forever,daemon=True);self.thread.start()
         self.addCleanup(self.server.server_close);self.addCleanup(self.server.shutdown)
+        self.customer_key='a'*48
         self.url='http://127.0.0.1:'+str(self.server.server_port)
         self.token=self.request('POST','/api/login',{'username':'operator_uji','password':'Testing123!'})[1]['token']
     def request(self,method,path,data=None,token=None):
-        req=Request(self.url+path,data=json.dumps(data).encode() if data is not None else None,method=method,headers={'Content-Type':'application/json',**({'Authorization':'Bearer '+token} if token else {})})
+        req=Request(self.url+path,data=json.dumps(data).encode() if data is not None else None,method=method,headers={'Content-Type':'application/json','X-QPark-Customer':self.customer_key,**({'Authorization':'Bearer '+token} if token else {})})
         try:
             with urlopen(req,timeout=10) as r:return r.status,json.load(r)
         except HTTPError as e:return e.code,json.load(e)
-    def enter(self,p):return self.request('POST','/api/officer/entry',{'plate':p,'verified':True,'image_readable':True,'image_source':'test_photo','operation_key':uid('op')},self.token)[1]['session']
+    def enter(self,p):
+        session=self.request('POST','/api/officer/entry',{'plate':p,'verified':True,'image_readable':True,'image_source':'test_photo','operation_key':uid('op')},self.token)[1]['session']
+        code=self.request('POST','/api/customer/code',{'plate':p})[1]['code']
+        self.assertEqual(self.request('POST','/api/officer/link',{'plate':p,'code':code,'verified':True},self.token)[0],200)
+        return session
     def test_two_independent_clients_and_auth(self):
         self.assertEqual(self.request('GET','/api/officer/monitor')[0],401)
         s=self.enter('B123AB')
@@ -43,7 +48,7 @@ class HTTPTest(unittest.TestCase):
         a=self.request('GET','/api/ticket?plate=B123AB')[1]['session']
         self.assertEqual(a['payment_status'],'Lunas')
         self.assertEqual(first['session']['window']['deadline'],a['window']['deadline'])
-        self.assertEqual(self.request('POST','/api/payment',{'invoice_id':'missing','outcome':'SUCCESS','operation_key':uid('op')})[0],404)
+        self.assertEqual(self.request('POST','/api/payment',{'invoice_id':'missing','outcome':'SUCCESS','operation_key':uid('op')})[0],403)
         self.request('POST','/api/logout',{},self.token)
         self.assertEqual(self.request('GET','/api/officer/monitor',token=self.token)[0],401)
     def test_100_mutations_10_clients_20_sessions(self):

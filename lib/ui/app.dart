@@ -21,26 +21,37 @@ class QParkApp extends StatefulWidget {
   State<QParkApp> createState() => _QParkAppState();
 }
 
-class _QParkAppState extends State<QParkApp> {
+class _QParkAppState extends State<QParkApp> with WidgetsBindingObserver {
   late Future<RemoteService> future;
   RemoteService? service;
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     future = initialize();
   }
 
   Future<RemoteService> initialize() async {
     final value = await widget.initialize();
     service = value;
+    value.setForeground(
+      WidgetsBinding.instance.lifecycleState == null ||
+          WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed,
+    );
     value.start();
     return value;
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     service?.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    service?.setForeground(state == AppLifecycleState.resumed);
   }
 
   @override
@@ -86,7 +97,9 @@ class _QParkAppState extends State<QParkApp> {
           builder: (context, _) => !snapshot.data!.signedIn
               ? CustomerLoginPage(service: snapshot.data!)
               : _Shell(
-                  key: ValueKey(snapshot.data!.role),
+                  key: ValueKey(
+                    '${snapshot.data!.role}:${snapshot.data!.operationOwner}',
+                  ),
                   service: snapshot.data!,
                 ),
         );
@@ -331,6 +344,29 @@ class _ShellState extends State<_Shell> {
                   onPressed: login,
                   icon: const Icon(Icons.badge_outlined),
                 ),
+              if (service.officer)
+                IconButton(
+                  tooltip: 'Status koneksi',
+                  icon: const Icon(Icons.monitor_heart_outlined),
+                  onPressed: () {
+                    final m = service.repository.metrics;
+                    showDialog<void>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Status koneksi sesi ini'),
+                        content: Text(
+                          'Permintaan: ${m.requests}\nGagal: ${m.failures}\nTimeout: ${m.timeouts}\np95 (100 terakhir): ${m.p95Milliseconds} ms\nGagal sinkron berturut-turut: ${service.consecutiveFailures}\nInterval sinkron: ${service.pollDelay.inSeconds} detik\nKode error terakhir: ${m.lastErrorCode ?? "?"}',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Tutup'),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
               const SizedBox(width: 8),
             ],
           ),
@@ -355,7 +391,7 @@ class _ShellState extends State<_Shell> {
                               style: const TextStyle(color: AppColors.danger),
                             ),
                             TextButton(
-                              onPressed: service.sync,
+                              onPressed: service.syncing ? null : service.sync,
                               child: const Text('Coba lagi'),
                             ),
                           ],
@@ -392,14 +428,22 @@ class _ShellState extends State<_Shell> {
                           children: [
                             const Text('Ada operasi yang belum terkonfirmasi.'),
                             TextButton(
-                              onPressed: () async {
-                                try {
-                                  await service.retryPending();
-                                } catch (e) {
-                                  if (context.mounted) remoteError(context, e);
-                                }
-                              },
-                              child: const Text('Periksa & coba ulang'),
+                              onPressed: service.retrying
+                                  ? null
+                                  : () async {
+                                      try {
+                                        await service.retryPending();
+                                      } catch (e) {
+                                        if (context.mounted) {
+                                          remoteError(context, e);
+                                        }
+                                      }
+                                    },
+                              child: Text(
+                                service.retrying
+                                    ? 'Memeriksa?'
+                                    : 'Periksa & coba ulang',
+                              ),
                             ),
                           ],
                         ),

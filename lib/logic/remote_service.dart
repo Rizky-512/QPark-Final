@@ -9,7 +9,7 @@ import '../data/remote_repository.dart';
 import '../domain/errors.dart';
 import '../domain/rules.dart';
 
-/// Orchestrates local vehicle choices and server state. Poll interval: 2 seconds.
+/// Account-scoped operations and adaptive, single-flight synchronization.
 class RemoteService extends ChangeNotifier {
   RemoteService(
     this.repository,
@@ -18,21 +18,36 @@ class RemoteService extends ChangeNotifier {
     this.customerData,
   }) {
     _restoreDemoVehicles();
-    final raw = preferences.getString('qpark_pending_v3');
+    repository.customerKey =
+        preferences.getString('qpark_device_key_v1') ?? newKey();
+    unawaited(
+      preferences.setString('qpark_device_key_v1', repository.customerKey!),
+    );
+    final raw = preferences.getString('qpark_pending_v4');
     if (raw != null) {
       try {
-        pending.addAll((jsonDecode(raw) as List).cast<Json>());
+        for (final value in jsonDecode(raw) as List) {
+          if (value is Map &&
+              value['owner'] is String &&
+              value['path'] is String &&
+              value['signature'] is String &&
+              value['body'] is Map &&
+              value['body']['operation_key'] is String &&
+              !value['owner'].startsWith('staff:')) {
+            _pending.add(Map<String, dynamic>.from(value));
+          }
+        }
       } catch (_) {
-        /* retain corrupt raw, do not fabricate success */
+        sessionNotice =
+            'Antrean lokal tidak dapat dibaca. Periksa status tiket sebelum mengulang transaksi.';
       }
     }
+    // Old unscoped queues cannot safely be assigned to the current account.
+    if (preferences.getString('qpark_pending_v3') != null && raw == null) {
+      sessionNotice =
+          'Ada antrean dari versi lama. Periksa tiket dengan petugas sebelum mengulang transaksi.';
+    }
     revoked.addAll(preferences.getStringList('qpark_revocations_v3') ?? []);
-    // Session credentials never persist; officer intents from a prior process cannot replay without login.
-    pending.removeWhere(
-      (p) =>
-          ((p['path'] as String).startsWith('/api/officer/') ||
-          (p['path'] as String).startsWith('/api/admin/')),
-    );
     customerIdentity = customerAuth.currentIdentity;
     _authSubscription = customerAuth.authStateChanges.listen(
       (identity) => unawaited(_applyCustomerIdentity(identity)),
@@ -48,11 +63,19 @@ class RemoteService extends ChangeNotifier {
   String? sessionNotice;
   bool get signedIn => officer || customerDemo || customerIdentity != null;
   void enterCustomerDemo() {
+    if (customerAuth.currentIdentity != null) {
+      sessionNotice =
+          'Sesi Google belum berakhir. Masuk kembali dengan Google lalu coba keluar lagi sebelum memakai demo.';
+      emit();
+      return;
+    }
+    _contextEpoch++;
     customerIdentity = null;
     customerDemo = true;
     sessionNotice = null;
     _restoreDemoVehicles();
     emit();
+    unawaited(sync());
   }
 
   Future<void> loginCustomerGoogle() async {
@@ -78,6 +101,9 @@ class RemoteService extends ChangeNotifier {
   }
 
   Future<void> _applyCustomerIdentity(CustomerIdentity? identity) async {
+    if (disposed) return;
+    _contextEpoch++;
+    final epoch = _contextEpoch;
     customerIdentity = identity;
     customerDemo = false;
     customerError = null;
@@ -96,7 +122,11 @@ class RemoteService extends ChangeNotifier {
     if (repository == null) return;
     try {
       final cloudPlates = await repository.listVehicles(identity.id);
-      if (customerIdentity?.id != identity.id) return;
+      if (disposed ||
+          _contextEpoch != epoch ||
+          customerIdentity?.id != identity.id) {
+        return;
+      }
       plates = cloudPlates;
       final saved = preferences.getString(_selectedKey(identity));
       selected = plates.contains(saved)
@@ -119,7 +149,10 @@ class RemoteService extends ChangeNotifier {
 
   Future<void> refreshCustomerData() async {
     final identity = customerIdentity;
-    if (identity != null) await _applyCustomerIdentity(identity);
+    if (identity != null) {
+      plates = [];
+      await _applyCustomerIdentity(identity);
+    }
   }
 
   final RemoteRepository repository;
@@ -130,7 +163,27 @@ class RemoteService extends ChangeNotifier {
   bool get admin => officer && role == 'ADMIN';
   Json? capacity, ticket;
   List<Json> sessions = [];
-  final List<Json> pending = [];
+  final List<Json> _pending = [];
+  String get operationOwner => officer
+      ? 'staff:$token'
+      : customerIdentity != null
+      ? 'user:${customerIdentity!.id}'
+      : 'demo:${repository.customerKey}';
+  List<Json> get pending =>
+      _pending.where((p) => p['owner'] == operationOwner).toList();
+  int _contextEpoch = 0, consecutiveFailures = 0;
+  bool foreground = true, _started = false, retrying = false;
+  Future<void>? _syncFuture;
+  final Map<String, Future<Json>> _posts = {};
+  DateTime? lastSyncedAt;
+  Duration get pollDelay => Duration(
+    seconds: consecutiveFailures > 0
+        ? min(60, 5 * (1 << min(consecutiveFailures - 1, 4)))
+        : officer || (ticket != null && ticket!['state'] != 'COMPLETED')
+        ? 5
+        : 30,
+  );
+
   final List<String> revoked = [];
   bool online = false, syncing = false, disposed = false;
   Timer? timer;
@@ -161,29 +214,82 @@ class RemoteService extends ChangeNotifier {
   }
 
   void start() {
-    unawaited(sync());
-    timer ??= Timer.periodic(
-      const Duration(seconds: 2),
-      (_) => unawaited(sync()),
+    if (_started || disposed) return;
+    _started = true;
+    if (foreground) unawaited(sync());
+  }
+
+  void setForeground(bool value) {
+    if (foreground == value || disposed) return;
+    foreground = value;
+    timer?.cancel();
+    if (value && _started) unawaited(sync());
+  }
+
+  void _schedule() {
+    timer?.cancel();
+    if (_started && foreground && !disposed) {
+      timer = Timer(pollDelay, () => unawaited(sync()));
+    }
+  }
+
+  Future<void> persistPending() async {
+    // Staff queues only live in memory: no staff session tokens on disk here.
+    await preferences.setString(
+      'qpark_pending_v4',
+      jsonEncode(
+        _pending
+            .where((p) => !(p['owner'] as String).startsWith('staff:'))
+            .toList(),
+      ),
     );
   }
 
-  Future<void> persistPending() async =>
-      preferences.setString('qpark_pending_v3', jsonEncode(pending));
-  Future<void> sync() async {
-    if (syncing || disposed) return;
+  Future<void> sync() {
+    if (disposed) return Future.value();
+    return _syncFuture ??= _syncLoop().whenComplete(() {
+      _syncFuture = null;
+      _schedule();
+    });
+  }
+
+  Future<void> _syncLoop() async {
     syncing = true;
+    timer?.cancel();
+    int epoch;
+    do {
+      epoch = _contextEpoch;
+      await _syncOnce(epoch);
+    } while (!disposed && foreground && epoch != _contextEpoch);
+    syncing = false;
+    emit();
+  }
+
+  void _expireStaff() {
+    final oldOwner = operationOwner;
+    token = null;
+    username = null;
+    role = 'PENGENDARA';
+    sessions = [];
+    ticket = null;
+    _pending.removeWhere((p) => p['owner'] == oldOwner);
+    _contextEpoch++;
+    sessionNotice =
+        'Sesi petugas berakhir. Masuk kembali untuk melanjutkan pelayanan.';
+  }
+
+  Future<void> _syncOnce(int epoch) async {
+    final currentPlate = selected;
+    final currentToken = token;
     try {
       final c = await repository.request('GET', '/api/capacity');
-      observe(c);
       for (final old in List<String>.from(revoked)) {
         await repository.request('POST', '/api/logout', token: old);
         revoked.remove(old);
         await preferences.setStringList('qpark_revocations_v3', revoked);
       }
       Json? nextTicket;
-      final currentPlate = selected;
-      if (currentPlate != null) {
+      if (currentPlate != null && currentToken == null) {
         final prior = (ticket?['plate']) == currentPlate
             ? (ticket?['id'])
             : null;
@@ -192,38 +298,39 @@ class RemoteService extends ChangeNotifier {
           '/api/ticket?plate=${Uri.encodeComponent(currentPlate)}${prior == null ? '' : '&previous=$prior'}',
         );
         nextTicket = r['session'] as Json?;
-        observe(r);
       }
       List<Json> nextSessions = [];
-      final currentToken = token;
       if (currentToken != null) {
         final r = await repository.request(
           'GET',
           '/api/officer/monitor',
           token: currentToken,
         );
-        observe(r);
         nextSessions = (r['sessions'] as List).cast<Json>();
       }
+      if (disposed || epoch != _contextEpoch) return;
+      observe(c);
       capacity = c;
-      if (selected == currentPlate) ticket = nextTicket;
-      if (token == currentToken) sessions = nextSessions;
+      ticket = nextTicket;
+      sessions = nextSessions;
       online = true;
       error = null;
+      consecutiveFailures = 0;
+      lastSyncedAt = DateTime.now();
     } on ApiError catch (e) {
-      if (e.status == 401 && token != null) {
-        sessionNotice =
-            'Sesi petugas berakhir. Masuk kembali untuk melanjutkan pelayanan.';
-        token = null;
-        username = null;
-        role = 'PENGENDARA';
-        sessions = [];
+      if (disposed || epoch != _contextEpoch) return;
+      if (e.status == 401 && currentToken != null && token == currentToken) {
+        _expireStaff();
       }
+      if (e.status == 401 || e.status == 403) ticket = null;
       online = false;
+      consecutiveFailures++;
       error = e.message;
-    } finally {
-      syncing = false;
-      emit();
+    } catch (_) {
+      if (disposed || epoch != _contextEpoch) return;
+      online = false;
+      consecutiveFailures++;
+      error = 'Data belum dapat diperbarui. Coba lagi.';
     }
   }
 
@@ -250,6 +357,7 @@ class RemoteService extends ChangeNotifier {
     } else {
       await preferences.setStringList('qpark_plates_v3', next);
     }
+    if (customerIdentity?.id != identity?.id || disposed) return;
     plates = next;
     await selectPlate(normal);
   }
@@ -263,6 +371,7 @@ class RemoteService extends ChangeNotifier {
     } else {
       await preferences.setStringList('qpark_plates_v3', next);
     }
+    if (customerIdentity?.id != identity?.id || disposed) return;
     plates = next;
     await selectPlate(
       selected == value ? (plates.isEmpty ? null : plates.first) : selected,
@@ -270,6 +379,7 @@ class RemoteService extends ChangeNotifier {
   }
 
   Future<void> selectPlate(String? value) async {
+    _contextEpoch++;
     selected = value;
     ticket = null;
     final key = customerIdentity == null
@@ -284,7 +394,20 @@ class RemoteService extends ChangeNotifier {
     await sync();
   }
 
-  Future<Json> post(String path, Json body, {bool idempotent = false}) async {
+  Future<Json> post(String path, Json body, {bool idempotent = false}) {
+    final key = '$operationOwner:$path:${jsonEncode(body)}';
+    return _posts.putIfAbsent(
+      key,
+      () => _post(path, body, idempotent: idempotent).whenComplete(() {
+        _posts.remove(key);
+      }),
+    );
+  }
+
+  Future<Json> _post(String path, Json body, {bool idempotent = false}) async {
+    final owner = operationOwner;
+    final epoch = _contextEpoch;
+    final currentToken = token;
     Json? operation;
     if (idempotent) {
       final signature = jsonEncode(body);
@@ -293,14 +416,22 @@ class RemoteService extends ChangeNotifier {
       );
       operation = matches.isEmpty
           ? {
+              'owner': owner,
               'path': path,
               'signature': signature,
               'body': {...body, 'operation_key': newKey()},
             }
           : matches.first;
       if (matches.isEmpty) {
-        pending.add(operation);
+        _pending.add(operation);
         await persistPending();
+      }
+      if (disposed || owner != operationOwner) {
+        throw const ApiError(
+          'Akun berubah. Periksa transaksi pada akun sebelumnya.',
+          'account_changed',
+          409,
+        );
       }
       body = Map<String, dynamic>.from(operation['body'] as Map);
     }
@@ -309,35 +440,36 @@ class RemoteService extends ChangeNotifier {
         'POST',
         path,
         body: body,
-        token: token,
+        token: currentToken,
       );
       observe(r);
-      online = true;
-      error = null;
       if (operation != null) {
-        pending.remove(operation);
+        _pending.remove(operation);
         await persistPending();
       }
+      if (disposed || owner != operationOwner || epoch != _contextEpoch) {
+        return r;
+      }
+      online = true;
+      error = null;
       if (r['session'] is Json && r['session']['plate'] == selected) {
         ticket = r['session'] as Json;
       }
       emit();
-      await sync();
+      unawaited(sync());
       return r;
     } on ApiError catch (e) {
       // HTTP 5xx may hide a committed transaction: retain the same key.
-      if (operation != null && e.status >= 400 && e.status < 500) {
-        pending.remove(operation);
+      if (operation != null && !e.retryable) {
+        _pending.remove(operation);
         await persistPending();
       }
-      if (e.status == 0 || e.status >= 500) online = false;
-      if (e.status == 401 && token != null) {
-        sessionNotice =
-            'Sesi petugas berakhir. Masuk kembali untuk melanjutkan pelayanan.';
-        token = null;
-        username = null;
-        role = 'PENGENDARA';
-        sessions = [];
+      if (disposed || owner != operationOwner || epoch != _contextEpoch) {
+        rethrow;
+      }
+      if (e.retryable) online = false;
+      if (e.status == 401 && currentToken != null && token == currentToken) {
+        _expireStaff();
       }
       error = e.message;
       emit();
@@ -346,31 +478,27 @@ class RemoteService extends ChangeNotifier {
   }
 
   Future<void> retryPending() async {
-    await sync();
-    for (final p in List<Json>.from(pending)) {
-      final path = p['path'] as String;
-      if (path.startsWith('/api/officer/') && !officer) continue;
-      try {
-        final r = await repository.request(
-          'POST',
-          path,
-          body: Map<String, dynamic>.from(p['body'] as Map),
-          token: token,
+    if (retrying) return;
+    retrying = true;
+    emit();
+    final owner = operationOwner;
+    try {
+      for (final p in pending) {
+        if (disposed || owner != operationOwner) break;
+        // _post finds the stored key using the original body signature.
+        await post(
+          p['path'] as String,
+          Map<String, dynamic>.from(
+            jsonDecode(p['signature'] as String) as Map,
+          ),
+          idempotent: true,
         );
-        observe(r);
-        pending.remove(p);
-        await persistPending();
-      } on ApiError catch (e) {
-        if (e.status >= 400 && e.status < 500) {
-          pending.remove(p);
-          await persistPending();
-        }
-        error = e.message;
-        emit();
-        rethrow;
       }
+      await sync();
+    } finally {
+      retrying = false;
+      emit();
     }
-    await sync();
   }
 
   Future<void> login(String name, String password) async {
@@ -381,6 +509,8 @@ class RemoteService extends ChangeNotifier {
     if (customerIdentity != null) await customerAuth.signOut();
     customerDemo = false;
     customerIdentity = null;
+    _contextEpoch++;
+    ticket = null;
     token = r['token'] as String;
     username = r['username'] as String;
     role = r['role'] as String? ?? 'PETUGAS';
@@ -390,7 +520,9 @@ class RemoteService extends ChangeNotifier {
   }
 
   Future<void> logout() async {
-    if (customerIdentity != null) await customerAuth.signOut();
+    _contextEpoch++;
+    ticket = null;
+    final hadCustomer = customerIdentity != null;
     customerIdentity = null;
     customerDemo = false;
     final old = token;
@@ -398,7 +530,7 @@ class RemoteService extends ChangeNotifier {
     username = null;
     role = 'PENGENDARA';
     sessions = [];
-    pending.removeWhere(
+    _pending.removeWhere(
       (p) =>
           ((p['path'] as String).startsWith('/api/officer/') ||
           (p['path'] as String).startsWith('/api/admin/')),
@@ -409,6 +541,16 @@ class RemoteService extends ChangeNotifier {
       await preferences.setStringList('qpark_revocations_v3', revoked);
     }
     await persistPending();
+    if (hadCustomer) {
+      try {
+        await customerAuth.signOut().timeout(const Duration(seconds: 12));
+      } catch (_) {
+        sessionNotice =
+            'Aplikasi sudah dikunci. Keluar dari Google belum terkonfirmasi; sambungkan internet dan masuk kembali untuk menyelesaikannya.';
+        emit();
+        return;
+      }
+    }
     await sync();
   }
 

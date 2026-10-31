@@ -10,9 +10,13 @@ import sqlite3
 import ssl
 import sys
 import threading
+import logging
+import time
+import uuid
 import webbrowser
 from .store import Store
 from .rules import RuleError
+from .recovery import BackupWorker
 
 ROOT=Path(__file__).resolve().parents[1]
 
@@ -38,9 +42,11 @@ class Handler(SimpleHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(204)
         self.send_header('Access-Control-Allow-Methods','GET,POST,OPTIONS')
-        self.send_header('Access-Control-Allow-Headers','Content-Type,Authorization')
+        self.send_header('Access-Control-Allow-Headers','Content-Type,Authorization,X-QPark-Customer')
         self.end_headers()
     def _api(self):
+        started = time.monotonic()
+        request_id = uuid.uuid4().hex
         try:
             data={}
             if self.command=='POST':
@@ -50,7 +56,8 @@ class Handler(SimpleHTTPRequestHandler):
                 if size<=0 or size>65536:raise RuleError('Ukuran permintaan tidak sah.','payload',400)
                 data=json.loads(self.rfile.read(size))
             token=self.headers.get('Authorization','').removeprefix('Bearer ')
-            result=self.store.dispatch(self.command,self.path,data,token)
+            result=self.store.dispatch(self.command,self.path,data,token,
+                                       customer_key=self.headers.get('X-QPark-Customer',''))
             status=200
         except RuleError as e:
             status=e.status;result={'error':str(e),'code':e.code}
@@ -61,7 +68,14 @@ class Handler(SimpleHTTPRequestHandler):
         except Exception:
             status=500;result={'error':'Kesalahan internal server. Coba lagi.','code':'server'}
         encoded=json.dumps(result,separators=(',',':')).encode()
+        # Fixed fields only: never include request URLs, bodies, keys or plates.
+        logging.getLogger('qpark.requests').info(json.dumps({
+            'request_id':request_id, 'status':status,
+            'elapsed_ms':round((time.monotonic()-started)*1000),
+            'error_code':result.get('code') if status>=400 else None,
+        }))
         self.send_response(status)
+        self.send_header('X-Request-ID',request_id)
         self.send_header('Content-Type','application/json; charset=utf-8')
         self.send_header('Content-Length',str(len(encoded)))
         self.end_headers()
@@ -82,6 +96,7 @@ def create_server(store,host='127.0.0.1',port=7357,directory=None,origins=()):
     return ThreadingHTTPServer((host,port),partial(Handler,store=store,origins=origins,directory=str(directory or ROOT/'rilis/web')))
 
 def main():
+    logging.basicConfig(level=logging.INFO, format='%(message)s')
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--host',default='127.0.0.1')
     p.add_argument('--port',type=int,default=7357)
@@ -93,8 +108,12 @@ def main():
     p.add_argument('--allow-origin',action='append',default=[])
     p.add_argument('--cert',type=Path)
     p.add_argument('--key',type=Path)
+    p.add_argument('--backup-dir',type=Path,help='Default: folder backups di sebelah database')
+    p.add_argument('--backup-interval-hours',type=float,default=24,
+                   help='Backup saat mulai dan setiap N jam; 0 menonaktifkan')
     args=p.parse_args()
     if bool(args.cert)!=bool(args.key):p.error('--cert dan --key harus berpasangan')
+    if not 0 <= args.backup_interval_hours <= 8760:p.error('Interval backup harus 0–8760 jam')
     store=Store(args.db,simulation=not args.disable_simulator)
     if args.add_officer:
         store.add_officer(input('Username petugas: '),getpass.getpass('Password (minimal 8 karakter): '))
@@ -114,9 +133,15 @@ def main():
     if args.host!='127.0.0.1' and not args.cert:
         print('HTTP LAN hanya untuk demo jaringan tepercaya. Kamera browser HP dan akses lintas jaringan memerlukan HTTPS.',flush=True)
     if args.open:threading.Timer(.8,lambda:webbrowser.open(url)).start()
+    backup = None
+    if args.backup_interval_hours > 0:
+        backup = BackupWorker(args.db,args.backup_dir or args.db.parent/'backups',args.backup_interval_hours*3600)
+        backup.start()
     try:server.serve_forever()
     except KeyboardInterrupt:pass
-    finally:server.server_close()
+    finally:
+        server.server_close()
+        if backup:backup.stop()
     return 0
 
 if __name__=='__main__':sys.exit(main())

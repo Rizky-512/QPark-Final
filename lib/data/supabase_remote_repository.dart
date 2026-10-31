@@ -42,7 +42,7 @@ class SupabaseRemoteRepository extends RemoteRepository {
   }
 
   @override
-  Future<Json> request(
+  Future<Json> performRequest(
     String method,
     String path, {
     Json? body,
@@ -55,7 +55,10 @@ class SupabaseRemoteRepository extends RemoteRepository {
         params: {
           'p_method': method,
           'p_path': uri.path,
-          'p_query': uri.queryParameters,
+          'p_query': {
+            ...uri.queryParameters,
+            if (customerKey != null) '_customer_key': customerKey,
+          },
           'p_body': body ?? <String, dynamic>{},
           'p_token': token,
         },
@@ -84,11 +87,25 @@ class SupabaseRemoteRepository extends RemoteRepository {
           (decoded['status'] as num?)?.toInt() ?? 400,
         );
       }
-      throw ApiError(
-        'Supabase menolak permintaan. Pastikan migration terbaru sudah dijalankan.',
-        error.code ?? 'supabase',
-        400,
-      );
+      final code = error.code ?? 'supabase';
+      final message = switch (code) {
+        '57014' =>
+          'Analisis melewati batas waktu server. Pengelola perlu memasang pembaruan query analisis (005).',
+        '42501' =>
+          'Akses database ditolak. Pengelola perlu memeriksa izin fungsi aplikasi.',
+        '42702' =>
+          'Query analisis memiliki nama kolom yang bertabrakan. Pengelola perlu memasang pembaruan SQL terbaru.',
+        '42883' || '42P01' || 'PGRST202' =>
+          'Fungsi atau tabel aplikasi belum tersedia. Periksa migrasi pada proyek Supabase yang terhubung.',
+        _ =>
+          'Permintaan Supabase gagal. Kirim kode berikut kepada pengelola untuk diperiksa.',
+      };
+      final status = switch (code) {
+        '57014' || '40001' || '40P01' || '53300' => 503,
+        '42501' => 403,
+        _ => 500,
+      };
+      throw ApiError('$message Kode: $code.', code, status);
     } catch (_) {
       throw const ApiError(
         'Supabase tidak terjangkau. Periksa koneksi internet.',

@@ -9,6 +9,7 @@ import sqlite3
 import time
 import uuid
 from .management import ManagementMixin
+from .customer_access import CustomerAccessMixin
 from .rules import (RuleError, plate, charge, CAPACITY, RATE, QUOTE_SECONDS,
                     WINDOW_SECONDS, AUTH_SECONDS, LOGIN_SECONDS)
 
@@ -21,7 +22,7 @@ def digest(value):
 def password_hash(password, salt):
     return hashlib.pbkdf2_hmac('sha256', password.encode(), bytes.fromhex(salt), 310000).hex()
 
-class Store(ManagementMixin):
+class Store(ManagementMixin, CustomerAccessMixin):
     def __init__(self, path, clock=time.time, simulation=True):
         self.path, self.clock = str(path), clock
         self.simulation = simulation
@@ -31,6 +32,7 @@ class Store(ManagementMixin):
             db.execute('INSERT OR IGNORE INTO migrations VALUES(1,?)', (self.clock(),))
             db.execute('INSERT OR IGNORE INTO metadata VALUES(?,?)', ('qr_secret', secrets.token_hex(32)))
             self.migrate_v4(db)
+            self.migrate_customer_access(db)
             self.secret = bytes.fromhex(db.execute("SELECT value FROM metadata WHERE key='qr_secret'").fetchone()[0])
 
     @contextmanager
@@ -153,7 +155,9 @@ class Store(ManagementMixin):
             result['session'] = self._view(db, result['session_id'], now)
         return result
 
-    def dispatch(self, method, path, data=None, token=''):
+    def dispatch(self, method, path, data=None, token='', *, customer_key=None):
+        # None is reserved for trusted in-process callers/tests. HTTP always
+        # supplies a string (including empty) and cannot bypass authorization.
         data = {} if data is None else data
         if not isinstance(data, dict):
             raise RuleError('Payload JSON harus objek.', 'payload', 400)
@@ -162,7 +166,9 @@ class Store(ManagementMixin):
             now = self.clock()
             try:
                 self._maintain(db, now)
-                result = self._dispatch(db, method, path, data, token, now)
+                result = (self._dispatch(db, method, path, data, token, now)
+                          if customer_key is None else
+                          self.customer_dispatch(db, method, path, data, token, now, customer_key))
                 db.commit()
                 return {**result, 'server_time': now}
             except RuleError as e:

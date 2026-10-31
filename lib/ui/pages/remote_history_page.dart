@@ -26,12 +26,17 @@ class _RemoteHistoryPageState extends State<RemoteHistoryPage> {
   String? error, scope;
   Timer? timer;
   String get currentScope =>
-      '${widget.args.service.token}:${widget.args.service.selected}';
+      '${widget.args.service.operationOwner}:${widget.args.service.selected}';
   @override
   void initState() {
     super.initState();
-    timer = Timer.periodic(const Duration(seconds: 5), (_) {
-      if (widget.active && !busy) load();
+    timer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (widget.active &&
+          widget.args.service.foreground &&
+          widget.args.service.online &&
+          !busy) {
+        load();
+      }
     });
   }
 

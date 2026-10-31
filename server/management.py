@@ -44,11 +44,13 @@ class ManagementMixin:
         self.audit(db,'PAYMENT_'+outcome,inv['id'],actor,now,method)
         return {'session_id':sid,'invoice_id':inv['id'],'outcome':outcome,'attempt_id':aid,'paid_at':now if outcome=='SUCCESS' else None}
 
-    def history(self,db,query,now,public=False):
+    def history(self,db,query,now,public=False,owner=None):
         conditions=[];params=[]
         def arg(k,default=''):return query.get(k,[default])[0]
         if public:
             conditions.append('s.plate=?');params.append(plate(arg('plate')))
+            if owner is not None:
+                conditions.append('EXISTS(SELECT 1 FROM customer_links c WHERE c.session_id=s.id AND c.owner=?)');params.append(owner)
         elif arg('q'):
             conditions.append('instr(s.plate,?)>0');params.append(arg('q').upper().replace(' ',''))
         if arg('vehicle'):

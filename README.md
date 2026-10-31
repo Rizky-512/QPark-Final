@@ -1,5 +1,8 @@
 # QPark v5 — Login Customer & Analisis Parkir
 
+Pembaruan prototipe: akses tiket terikat pelanggan, kode penghubung petugas, polling adaptif, pemulihan transaksi dan backup lokal otomatis. Baca [panduan pemasangan dan pemulihan](docs/KEANDALAN_PROTOTIPE.md). Supabase memerlukan migrasi `202610310001_customer_access.sql`; perubahan source/build tidak memasangnya otomatis.
+
+
 Revisi lanjutan dari QPark Flutter yang sama. Styling hijau dan komponen tema dipertahankan. Pembayaran QR tetap tersedia; input kendaraan manual, pembayaran manual, admin, dan riwayat dipulihkan sesuai permintaan terbaru.
 
 Tambahan v5: login customer sebagai halaman awal, opsi admin/petugas di bawah, dan menu **Analisis** khusus admin. Login Google dan penyimpanan nopol per akun melalui Supabase tersedia saat build diberi konfigurasi project. Lihat [panduan Supabase](docs/SUPABASE_MIGRASI.md), [perubahan v5](docs/PERUBAHAN_V5.md), dan [pengujian v5](docs/HASIL_PENGUJIAN_V5.md).
@@ -30,7 +33,7 @@ Paket menyertakan build web terbaru. Flutter SDK tidak diperlukan untuk menjalan
 | Petugas | Catat mobil/motor, input manual atau gambar, verifikasi kendaraan, monitor aktif, konfirmasi pembayaran manual, uang diterima/kembalian, verifikasi QR keluar, konfirmasi lewat, seluruh riwayat |
 | Admin | Semua fitur operasional petugas dan riwayat; pengaturan tarif/kapasitas; tambah/ubah akun admin atau petugas, password, dan status aktif |
 
-Riwayat menyediakan pencarian nopol untuk staf, filter jenis kendaraan/metode pembayaran/tanggal masuk, total pembayaran, dan halaman berikut/sebelumnya. Pelanggan hanya melihat nopol yang dipilih pada Beranda. Pada tahap integrasi ini, daftar nopol akun dilindungi RLS Supabase, sedangkan endpoint riwayat/tiket pada API Python masih berbasis nopol; lihat batas migrasi pada panduan Supabase.
+Riwayat menyediakan pencarian nopol untuk staf, filter jenis kendaraan/metode pembayaran/tanggal masuk, total pembayaran, dan halaman berikut/sebelumnya. Pelanggan hanya melihat nopol yang dipilih pada Beranda. Tiket dan riwayat pelanggan sekarang dibatasi ke sesi yang sudah dihubungkan petugas melalui kode sementara; mengetik nopol saja tidak memberikan akses. Riwayat lama tetap dapat dilihat petugas.
 
 ## Alur manual paling mudah
 
@@ -46,7 +49,7 @@ Jika pembayaran QR sudah berhasil, muat ulang tagihan manual: jumlah baru menjad
 
 ## Alur QR tetap tersedia
 
-Pengendara menyimpan nopol → petugas mencatat masuk → tiket muncul → buka **Tiket** → centang siap keluar → buka tagihan → **Simulasi berhasil**. Pengendara memperoleh QR keluar. Petugas membuka **Keluar → QR keluar**, memindai atau memakai bantuan token manual, mencocokkan nopol, memberi izin, lalu mengonfirmasi kendaraan lewat.
+Pengendara menyimpan nopol dan membuat kode; petugas mencatat masuk lalu menghubungkan kode setelah verifikasi kendaraan. Tiket muncul di Beranda. Pelanggan membuka Tiket, menyatakan siap keluar, membuka tagihan, dan menekan Simulasi berhasil. QR keluar diperiksa petugas, nopol dicocokkan, izin diberikan, lalu kendaraan lewat dikonfirmasi.
 
 Pembayaran QRIS dan gerbang masih **simulasi**, tanpa perpindahan uang nyata. Input uang manual adalah pencatatan pembayaran yang diterima petugas di luar aplikasi.
 

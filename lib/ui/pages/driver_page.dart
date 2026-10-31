@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../common.dart';
 import '../remote_common.dart';
+import '../widgets/customer_link.dart';
 
 class DriverPage extends StatefulWidget {
   const DriverPage({super.key, required this.args});
@@ -83,7 +84,7 @@ class _DriverPageState extends State<DriverPage> {
       children: [
         const PageHeading(
           'Parkir lebih mudah',
-          'Simpan nopol. Tiket muncul setelah petugas memverifikasi kendaraan masuk.',
+          'Simpan nopol, lalu hubungkan tiket melalui kode untuk petugas.',
         ),
         if (service.plates.length > 1) ...[
           DropdownButtonFormField<String>(
@@ -119,7 +120,7 @@ class _DriverPageState extends State<DriverPage> {
                         : 'Belum tercatat masuk',
                     description: !service.online
                         ? 'Tiket belum dapat diperbarui. Periksa koneksi lalu coba lagi.'
-                        : 'Tiket tersedia setelah petugas memverifikasi kendaraan. Anda tidak perlu membuka HP di pintu masuk.',
+                        : 'Tiket akan terlihat setelah petugas mencocokkan kendaraan dan menghubungkan kode Anda.',
                   )
                 else ...[
                   SessionSummary(service.ticket!),
@@ -140,6 +141,13 @@ class _DriverPageState extends State<DriverPage> {
             ),
           ),
         const SizedBox(height: 24),
+        if (service.selected != null && service.ticket == null) ...[
+          CustomerLinkCard(
+            key: ValueKey('${service.operationOwner}:${service.selected}'),
+            service: service,
+          ),
+          const SizedBox(height: 24),
+        ],
         CapacityCard(service),
         const SizedBox(height: 24),
         SurfaceCard(
