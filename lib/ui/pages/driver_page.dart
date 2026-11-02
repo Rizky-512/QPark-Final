@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import '../common.dart';
 import '../remote_common.dart';
 import '../widgets/customer_link.dart';
+import '../../domain/customer_status.dart';
+import '../widgets/parking_cost_card.dart';
 
 class DriverPage extends StatefulWidget {
-  const DriverPage({super.key, required this.args});
+  const DriverPage({super.key, required this.args, this.active = true});
+  final bool active;
   final RemoteArgs args;
   @override
   State<DriverPage> createState() => _DriverPageState();
@@ -79,6 +82,35 @@ class _DriverPageState extends State<DriverPage> {
   @override
   Widget build(BuildContext context) {
     final service = widget.args.service;
+    final status = CustomerStatus.resolve(
+      hasVehicle: service.selected != null,
+      online: service.online,
+      loading: service.syncing && service.error == null,
+      pending: service.pending.isNotEmpty,
+      ticket: service.ticket,
+      now: service.serverNow,
+    );
+    Future<void> primaryAction() async {
+      switch (status.action) {
+        case CustomerAction.addVehicle:
+          await edit();
+        case CustomerAction.refresh:
+          await service.sync();
+        case CustomerAction.reconcile:
+          try {
+            await service.retryPending();
+          } catch (error) {
+            if (context.mounted) remoteError(context, error);
+          }
+        case CustomerAction.payment || CustomerAction.exitQr:
+          widget.args.navigate(1);
+        case CustomerAction.history:
+          widget.args.navigate(2);
+        case CustomerAction.link:
+          break;
+      }
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -103,48 +135,58 @@ class _DriverPageState extends State<DriverPage> {
           ),
           const SizedBox(height: 16),
         ],
-        if (service.selected != null)
-          SurfaceCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Parkir Anda · ${service.selected}',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
+        SurfaceCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                status.title,
+                key: const Key('customer-status'),
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              Text(status.description),
+              if (!service.online && service.syncing)
+                const LinearProgressIndicator(),
+              if (service.ticket != null) ...[
                 const SizedBox(height: 16),
-                if (service.ticket == null)
-                  EmptyState(
-                    title: !service.online
-                        ? 'Memeriksa tiket'
-                        : 'Belum tercatat masuk',
-                    description: !service.online
-                        ? 'Tiket belum dapat diperbarui. Periksa koneksi lalu coba lagi.'
-                        : 'Tiket akan terlihat setelah petugas mencocokkan kendaraan dan menghubungkan kode Anda.',
-                  )
-                else ...[
-                  SessionSummary(service.ticket!),
-                  const SizedBox(height: 20),
-                  FilledButton.icon(
-                    onPressed: () => widget.args.navigate(1),
-                    icon: const Icon(Icons.receipt_long_outlined),
-                    label: Text(
-                      service.ticket!['state'] == 'COMPLETED'
-                          ? 'Lihat sesi selesai'
-                          : service.ticket!['window_status'] == 'VALID'
-                          ? 'Tampilkan QR keluar'
-                          : 'Buka tiket & pembayaran',
-                    ),
-                  ),
-                ],
+                SessionSummary(service.ticket!),
               ],
-            ),
+              if (status.action != CustomerAction.link) ...[
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  key: const Key('customer-primary'),
+                  onPressed:
+                      service.retrying ||
+                          (status.action == CustomerAction.refresh &&
+                              service.syncing)
+                      ? null
+                      : primaryAction,
+                  icon: Icon(
+                    status.action == CustomerAction.exitQr
+                        ? Icons.qr_code
+                        : Icons.arrow_forward,
+                  ),
+                  label: Text(status.label),
+                ),
+              ],
+            ],
           ),
+        ),
         const SizedBox(height: 24),
-        if (service.selected != null && service.ticket == null) ...[
+        if (status.action == CustomerAction.link) ...[
           CustomerLinkCard(
             key: ValueKey('${service.operationOwner}:${service.selected}'),
             service: service,
+          ),
+          const SizedBox(height: 24),
+        ],
+        if (service.ticket != null &&
+            service.ticket!['state'] != 'COMPLETED') ...[
+          ParkingCostCard(
+            session: service.ticket!,
+            service: service,
+            active: widget.active,
           ),
           const SizedBox(height: 24),
         ],

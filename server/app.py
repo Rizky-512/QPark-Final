@@ -42,12 +42,15 @@ class Handler(SimpleHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(204)
         self.send_header('Access-Control-Allow-Methods','GET,POST,OPTIONS')
-        self.send_header('Access-Control-Allow-Headers','Content-Type,Authorization,X-QPark-Customer')
+        self.send_header('Access-Control-Allow-Headers','Content-Type,Authorization,X-QPark-Customer,X-QPark-Environment')
         self.end_headers()
     def _api(self):
         started = time.monotonic()
         request_id = uuid.uuid4().hex
         try:
+            requested_environment = self.headers.get('X-QPark-Environment')
+            if requested_environment and requested_environment != self.store.environment:
+                raise RuleError('Environment aplikasi dan server berbeda.', 'environment', 409)
             data={}
             if self.command=='POST':
                 if 'application/json' not in self.headers.get('Content-Type',''):
@@ -99,9 +102,10 @@ def main():
     logging.basicConfig(level=logging.INFO, format='%(message)s')
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--host',default='127.0.0.1')
-    p.add_argument('--port',type=int,default=7357)
-    p.add_argument('--db',type=Path,default=ROOT/'data/qpark_server_v3.db')
-    p.add_argument('--directory',type=Path,default=ROOT/'rilis/web')
+    p.add_argument('--environment', choices=['demo','test'], default='demo')
+    p.add_argument('--port',type=int)
+    p.add_argument('--db',type=Path)
+    p.add_argument('--directory',type=Path)
     p.add_argument('--open',action='store_true')
     p.add_argument('--add-officer',action='store_true')
     p.add_argument('--disable-simulator',action='store_true')
@@ -112,9 +116,13 @@ def main():
     p.add_argument('--backup-interval-hours',type=float,default=24,
                    help='Backup saat mulai dan setiap N jam; 0 menonaktifkan')
     args=p.parse_args()
+    args.port = args.port if args.port is not None else (7367 if args.environment=='test' else 7357)
+    args.db = args.db or (ROOT/'data/test/qpark.db' if args.environment=='test' else ROOT/'data/qpark_server_v3.db')
+    args.directory = args.directory or (ROOT/'build/environments/test/web' if args.environment=='test' else ROOT/'rilis/web')
     if bool(args.cert)!=bool(args.key):p.error('--cert dan --key harus berpasangan')
     if not 0 <= args.backup_interval_hours <= 8760:p.error('Interval backup harus 0–8760 jam')
-    store=Store(args.db,simulation=not args.disable_simulator)
+    try:store=Store(args.db,simulation=not args.disable_simulator,environment=args.environment)
+    except ValueError as error:p.error(str(error))
     if args.add_officer:
         store.add_officer(input('Username petugas: '),getpass.getpass('Password (minimal 8 karakter): '))
         print('Akun tersimpan.');return 0

@@ -2,10 +2,16 @@ import 'package:flutter/material.dart';
 import '../../data/remote_repository.dart';
 import '../common.dart';
 import '../remote_common.dart';
+import '../widgets/receipt_button.dart';
 
 class ManualPaymentPage extends StatefulWidget {
-  const ManualPaymentPage({super.key, required this.args});
+  const ManualPaymentPage({
+    super.key,
+    required this.args,
+    this.initialSessionId,
+  });
   final RemoteArgs args;
+  final String? initialSessionId;
   @override
   State<ManualPaymentPage> createState() => _ManualPaymentPageState();
 }
@@ -15,6 +21,17 @@ class _ManualPaymentPageState extends State<ManualPaymentPage> {
   String? selected;
   Json? session, invoice;
   bool busy = false, verified = false;
+  @override
+  void initState() {
+    super.initState();
+    selected = widget.initialSessionId;
+    if (selected != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) quote();
+      });
+    }
+  }
+
   @override
   void dispose() {
     received.dispose();
@@ -211,6 +228,7 @@ class _ManualPaymentPageState extends State<ManualPaymentPage> {
               if (s != null) ...[
                 const SizedBox(height: 20),
                 SessionSummary(s),
+                ReceiptButton(session: s),
                 const SizedBox(height: 20),
                 if (completed)
                   const Text(

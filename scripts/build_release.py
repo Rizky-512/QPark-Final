@@ -26,7 +26,11 @@ def main():
         print('Flutter SDK belum ditemukan di PATH, FLUTTER_ROOT, atau folder development/flutter.');return 1
     build=[flutter,'build','web','--release','--no-web-resources-cdn']
     defines=ROOT/'dart_defines.json'
-    if defines.exists():build.append(f'--dart-define-from-file={defines}')
+    if defines.exists():
+        profile=json.loads(defines.read_text(encoding='utf-8'))
+        if profile.get('QPARK_ENV','demo') != 'demo':
+            print('rilis/web hanya untuk demo. Gunakan scripts/build_environment.py untuk pengujian.');return 1
+        build.append(f'--dart-define-from-file={defines}')
     for args in ([flutter,'pub','get'],build):
         completed=subprocess.run(args,cwd=ROOT)
         if completed.returncode:return completed.returncode

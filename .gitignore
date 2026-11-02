@@ -6,6 +6,7 @@ build/
 .packages
 .env
 dart_defines.json
+config/*.local.json
 supabase/.temp/
 *.db
 *.sqlite

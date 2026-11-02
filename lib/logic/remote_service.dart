@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../data/customer_repository.dart';
 import '../data/remote_repository.dart';
+import '../data/scoped_preferences.dart';
 import '../domain/errors.dart';
 import '../domain/rules.dart';
 
@@ -13,10 +14,11 @@ import '../domain/rules.dart';
 class RemoteService extends ChangeNotifier {
   RemoteService(
     this.repository,
-    this.preferences, {
+    SharedPreferences store, {
+    String storageNamespace = '',
     this.customerAuth = const PendingSupabaseAuth(),
     this.customerData,
-  }) {
+  }) : preferences = ScopedPreferences(store, storageNamespace) {
     _restoreDemoVehicles();
     repository.customerKey =
         preferences.getString('qpark_device_key_v1') ?? newKey();
@@ -156,7 +158,7 @@ class RemoteService extends ChangeNotifier {
   }
 
   final RemoteRepository repository;
-  final SharedPreferences preferences;
+  final ScopedPreferences preferences;
   List<String> plates = [];
   String? selected, token, username, error, customerError;
   String role = 'PENGENDARA';

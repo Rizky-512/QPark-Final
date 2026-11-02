@@ -11,17 +11,30 @@ Future<RemoteService> bootstrap() async {
   AppConfig.validateSupabase();
   final preferences = await SharedPreferences.getInstance();
   if (!AppConfig.supabaseConfigured) {
-    return RemoteService(RemoteRepository(AppConfig.apiBaseUrl), preferences);
+    return RemoteService(
+      RemoteRepository(AppConfig.apiBaseUrl)
+        ..environment = AppConfig.environment,
+      preferences,
+      storageNamespace: AppConfig.storageNamespace,
+    );
   }
 
   final initialized = await Supabase.initialize(
     url: AppConfig.supabaseUrl,
     publishableKey: AppConfig.supabasePublishableKey,
+    authOptions: FlutterAuthClientOptions(
+      localStorage: AppConfig.environment == 'test'
+          ? SharedPreferencesLocalStorage(
+              persistSessionKey: '${AppConfig.storageNamespace}auth',
+            )
+          : null,
+    ),
   );
   final client = initialized.client;
   return RemoteService(
     SupabaseRemoteRepository(client),
     preferences,
+    storageNamespace: AppConfig.storageNamespace,
     customerAuth: SupabaseCustomerAuth(
       client,
       AppConfig.supabaseMobileRedirectUrl,

@@ -1,14 +1,21 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
+import '../widgets/qr_scanner_page.dart';
 import '../../data/remote_repository.dart';
 import '../common.dart';
 import '../remote_common.dart';
 import 'manual_payment_page.dart';
 
 class ExitPage extends StatefulWidget {
-  const ExitPage({super.key, required this.args});
+  const ExitPage({
+    super.key,
+    required this.args,
+    this.sessionId,
+    this.requestId = 0,
+  });
   final RemoteArgs args;
+  final String? sessionId;
+  final int requestId;
   @override
   State<ExitPage> createState() => _ExitPageState();
 }
@@ -26,9 +33,16 @@ class _ExitPageState extends State<ExitPage>
   @override
   void initState() {
     super.initState();
+    manual = widget.sessionId != null;
     ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() {});
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant ExitPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.requestId != oldWidget.requestId) manual = true;
   }
 
   @override
@@ -43,7 +57,12 @@ class _ExitPageState extends State<ExitPage>
   Future<void> camera() async {
     final value = await Navigator.push<String>(
       context,
-      MaterialPageRoute(builder: (_) => const _ScannerPage()),
+      MaterialPageRoute(
+        builder: (_) => QrScannerPage(
+          title: 'Pindai QR keluar',
+          accepts: (value) => value.startsWith('QPX.'),
+        ),
+      ),
     );
     if (value != null && mounted) {
       token.text = value;
@@ -333,57 +352,13 @@ class _ExitPageState extends State<ExitPage>
         Offstage(offstage: manual, child: qrContent),
         Offstage(
           offstage: !manual,
-          child: ManualPaymentPage(args: widget.args),
+          child: ManualPaymentPage(
+            key: ValueKey('checkout-${widget.requestId}'),
+            args: widget.args,
+            initialSessionId: widget.sessionId,
+          ),
         ),
       ],
     );
   }
-}
-
-class _ScannerPage extends StatefulWidget {
-  const _ScannerPage();
-  @override
-  State<_ScannerPage> createState() => _ScannerPageState();
-}
-
-class _ScannerPageState extends State<_ScannerPage> {
-  bool accepted = false;
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Pindai QR keluar')),
-    body: MobileScanner(
-      onDetect: (capture) {
-        if (accepted) return;
-        for (final barcode in capture.barcodes) {
-          final value = barcode.rawValue;
-          if (value != null && value.isNotEmpty) {
-            accepted = true;
-            Navigator.pop(context, value);
-            break;
-          }
-        }
-      },
-      errorBuilder: (context, error) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.no_photography_outlined, size: 48),
-              const SizedBox(height: 16),
-              const Text(
-                'Kamera tidak tersedia. Izinkan kamera dan gunakan HTTPS atau localhost. Token manual tersedia untuk demonstrasi.',
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              OutlinedButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Kembali'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    ),
-  );
 }

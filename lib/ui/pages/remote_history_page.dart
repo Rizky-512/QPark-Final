@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../data/remote_repository.dart';
 import '../common.dart';
 import '../remote_common.dart';
+import '../widgets/receipt_button.dart';
 
 class RemoteHistoryPage extends StatefulWidget {
   const RemoteHistoryPage({
@@ -272,6 +273,7 @@ class _RemoteHistoryPageState extends State<RemoteHistoryPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   SessionSummary(s),
+                  ReceiptButton(session: s),
                   const Divider(),
                   ...(s['invoices'] as List)
                       .cast<Json>()

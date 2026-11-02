@@ -23,12 +23,25 @@ def password_hash(password, salt):
     return hashlib.pbkdf2_hmac('sha256', password.encode(), bytes.fromhex(salt), 310000).hex()
 
 class Store(ManagementMixin, CustomerAccessMixin):
-    def __init__(self, path, clock=time.time, simulation=True):
+    def __init__(self, path, clock=time.time, simulation=True, environment='demo'):
+        if environment not in ('demo', 'test'):
+            raise ValueError('Environment harus demo atau test.')
+        self.environment = environment
+        existing = Path(path).is_file() and Path(path).stat().st_size > 0
         self.path, self.clock = str(path), clock
         self.simulation = simulation
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         with self.connection() as db:
+            if existing:
+                try:
+                    marker = db.execute("SELECT value FROM metadata WHERE key='environment'").fetchone()
+                except sqlite3.Error:
+                    raise ValueError('Database bukan database QPark yang dikenali.') from None
+                previous = marker['value'] if marker else 'demo'
+                if previous != environment:
+                    raise ValueError('Database environment berbeda. Pilih database terpisah.')
             db.executescript(Path(__file__).with_name('schema.sql').read_text())
+            db.execute("INSERT OR IGNORE INTO metadata VALUES('environment',?)", (environment,))
             db.execute('INSERT OR IGNORE INTO migrations VALUES(1,?)', (self.clock(),))
             db.execute('INSERT OR IGNORE INTO metadata VALUES(?,?)', ('qr_secret', secrets.token_hex(32)))
             self.migrate_v4(db)
@@ -185,7 +198,7 @@ class Store(ManagementMixin, CustomerAccessMixin):
         parts = urlsplit(path)
         path, query = parts.path, parse_qs(parts.query)
         if method=='GET' and path=='/api/health':
-            return {'service':'qpark', 'version':5, 'simulation':self.simulation}
+            return {'service':'qpark', 'version':5, 'simulation':self.simulation, 'environment':self.environment}
         if method=='POST' and path=='/api/login':
             username, password = data.get('username',''), data.get('password','')
             if not isinstance(username,str) or not isinstance(password,str):

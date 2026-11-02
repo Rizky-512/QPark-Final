@@ -27,6 +27,7 @@ class RemoteRepository {
   final Duration requestTimeout;
   final RequestMetrics metrics = RequestMetrics();
   String? customerKey;
+  String? environment;
   Future<String> explainForecast(Json forecast, {required String token}) async {
     throw const ApiError(
       'Penjelasan Gemini tersedia pada koneksi Supabase. Prediksi regresi tetap berjalan.',
@@ -83,6 +84,7 @@ class RemoteRepository {
       'Content-Type': 'application/json',
       if (token != null) 'Authorization': 'Bearer $token',
       'X-QPark-Customer': ?customerKey,
+      'X-QPark-Environment': ?environment,
     };
     try {
       final response = await (method == 'GET'

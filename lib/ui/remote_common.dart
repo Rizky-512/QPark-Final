@@ -4,9 +4,10 @@ import '../logic/remote_service.dart';
 import 'common.dart';
 
 class RemoteArgs {
-  const RemoteArgs(this.service, this.navigate);
+  const RemoteArgs(this.service, this.navigate, {this.openCheckout});
   final RemoteService service;
   final void Function(int) navigate;
+  final void Function(String sessionId)? openCheckout;
 }
 
 String wib(dynamic seconds) {

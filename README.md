@@ -1,5 +1,7 @@
 # QPark v5 — Login Customer & Analisis Parkir
 
+Pembaruan alur: QR penghubung tiket, status pelanggan dan rincian biaya, filter petugas dengan akses transaksi langsung, bukti transaksi, serta lingkungan pengujian terpisah dan CI. Lihat [panduan alur dan lingkungan](docs/PENINGKATAN_UX_DAN_ENVIRONMENT.md).
+
 Pembaruan prototipe: akses tiket terikat pelanggan, kode penghubung petugas, polling adaptif, pemulihan transaksi dan backup lokal otomatis. Baca [panduan pemasangan dan pemulihan](docs/KEANDALAN_PROTOTIPE.md). Supabase memerlukan migrasi `202610310001_customer_access.sql`; perubahan source/build tidak memasangnya otomatis.
 
 

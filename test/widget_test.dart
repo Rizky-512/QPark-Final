@@ -17,6 +17,8 @@ Future<void> settle(WidgetTester tester) async {
 Json ticket() => {
   'id': 'QP-test-session',
   'plate': 'B123AB',
+  'vehicle_type': 'MOBIL',
+  'hourly_rate': 7000,
   'entered_at': 1800000000,
   'state': 'IN_AREA',
   'duration_seconds': 100,

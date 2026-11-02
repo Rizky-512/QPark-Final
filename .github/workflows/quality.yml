@@ -1,0 +1,37 @@
+name: Quality checks
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  flutter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.6'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+      - run: flutter build web --release --dart-define-from-file=config/test.example.json
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m unittest discover -s server/tests -v
+      - name: Disposable PostgreSQL
+        run: |
+          docker run -d --name qpark-ci -e POSTGRES_PASSWORD=local-ci-only postgres:17
+          for i in $(seq 1 30); do
+            if docker exec qpark-ci pg_isready -U postgres; then exit 0; fi
+            sleep 2
+          done
+          exit 1
+      - run: python scripts/test_supabase_local.py --container qpark-ci
+      - if: always()
+        run: docker rm -f qpark-ci || true

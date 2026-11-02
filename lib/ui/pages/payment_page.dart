@@ -6,6 +6,7 @@ import '../../data/remote_repository.dart';
 import '../../config.dart';
 import '../common.dart';
 import '../remote_common.dart';
+import '../widgets/receipt_button.dart';
 
 class PaymentPage extends StatefulWidget {
   const PaymentPage({super.key, required this.args});
@@ -135,6 +136,7 @@ class _PaymentPageState extends State<PaymentPage> {
           'Pembayaran digital simulasi · tidak memindahkan uang sungguhan.',
         ),
         SurfaceCard(child: SessionSummary(s)),
+        ReceiptButton(session: s),
         const SizedBox(height: 24),
         if (completed)
           const SurfaceCard(

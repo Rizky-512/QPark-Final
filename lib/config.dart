@@ -2,6 +2,15 @@ import 'package:flutter/foundation.dart';
 
 /// Public configuration; API_BASE_URL must never contain credentials.
 abstract final class AppConfig {
+  static const environment = String.fromEnvironment(
+    'QPARK_ENV',
+    defaultValue: 'demo',
+  );
+  static String get storageNamespace => environment == 'demo'
+      ? '' // Preserve existing demo identity and pending transactions.
+      : 'qpark.test.${supabaseConfigured ? supabaseUrl : apiBaseUrl}.';
+  static String get environmentLabel =>
+      environment == 'test' ? 'PENGUJIAN' : 'DEMO';
   static const simulation = bool.fromEnvironment(
     'QPARK_SIMULATION',
     defaultValue: true,
@@ -23,6 +32,9 @@ abstract final class AppConfig {
       supabaseUrl.isNotEmpty && supabasePublishableKey.isNotEmpty;
 
   static void validateSupabase() {
+    if (!['demo', 'test'].contains(environment)) {
+      throw const FormatException('QPARK_ENV harus demo atau test.');
+    }
     final onlyOneValue = supabaseUrl.isEmpty != supabasePublishableKey.isEmpty;
     if (onlyOneValue) {
       throw const FormatException(

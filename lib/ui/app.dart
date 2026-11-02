@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import '../config.dart';
 import '../logic/remote_service.dart';
 import 'common.dart';
 import 'remote_common.dart';
@@ -56,6 +57,13 @@ class _QParkAppState extends State<QParkApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
+    builder: (context, child) => AppConfig.environment == 'test'
+        ? Banner(
+            message: 'PENGUJIAN',
+            location: BannerLocation.topEnd,
+            child: child!,
+          )
+        : child!,
     title: 'QPark · Parkir lebih mudah',
     debugShowCheckedModeBanner: false,
     theme: buildTheme(),
@@ -117,6 +125,17 @@ class _Shell extends StatefulWidget {
 
 class _ShellState extends State<_Shell> {
   int index = 0;
+  String? checkoutSessionId;
+  int checkoutRequest = 0;
+  void openCheckout(String sessionId) {
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() {
+      checkoutSessionId = sessionId;
+      checkoutRequest++;
+      index = 2;
+    });
+  }
+
   List<(String, IconData)> get destinations => widget.service.officer
       ? [
           ('Beranda', Icons.space_dashboard_outlined),
@@ -271,18 +290,23 @@ class _ShellState extends State<_Shell> {
   );
   @override
   Widget build(BuildContext context) {
-    final service = widget.service, args = RemoteArgs(widget.service, navigate);
+    final service = widget.service,
+        args = RemoteArgs(widget.service, navigate, openCheckout: openCheckout);
     final pages = service.officer
         ? <Widget>[
             DashboardPage(args: args),
             EntryPage(args: args),
-            ExitPage(args: args),
+            ExitPage(
+              args: args,
+              sessionId: checkoutSessionId,
+              requestId: checkoutRequest,
+            ),
             RemoteHistoryPage(args: args, active: index == 3),
             if (service.admin) AdminPage(args: args),
             if (service.admin) AnalyticsPage(args: args, active: index == 5),
           ]
         : <Widget>[
-            DriverPage(args: args),
+            DriverPage(args: args, active: index == 0),
             PaymentPage(args: args),
             RemoteHistoryPage(args: args, active: index == 2),
           ];

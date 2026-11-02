@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../common.dart';
 import '../remote_common.dart';
+import '../../domain/operational_status.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key, required this.args});
@@ -11,14 +12,18 @@ class DashboardPage extends StatefulWidget {
 
 class _DashboardPageState extends State<DashboardPage> {
   String query = '';
+  OperationalStatus? statusFilter;
   @override
   Widget build(BuildContext context) {
     final service = widget.args.service;
     final rows = service.sessions
         .where(
-          (s) => (s['plate'] as String).contains(
-            query.toUpperCase().replaceAll(' ', ''),
-          ),
+          (s) =>
+              (statusFilter == null ||
+                  operationalStatus(s, service.serverNow) == statusFilter) &&
+              (s['plate'] as String).contains(
+                query.toUpperCase().replaceAll(' ', ''),
+              ),
         )
         .toList();
     return Column(
@@ -72,14 +77,35 @@ class _DashboardPageState extends State<DashboardPage> {
                 ),
               ),
               const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ChoiceChip(
+                    label: Text('Semua (${service.sessions.length})'),
+                    selected: statusFilter == null,
+                    onSelected: (_) => setState(() => statusFilter = null),
+                  ),
+                  for (final status in OperationalStatus.values)
+                    ChoiceChip(
+                      label: Text(
+                        '${operationalLabel(status)} (${service.sessions.where((s) => operationalStatus(s, service.serverNow) == status).length})',
+                      ),
+                      selected: statusFilter == status,
+                      onSelected: (_) => setState(() => statusFilter = status),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text('${rows.length} kendaraan ditampilkan'),
               if (rows.isEmpty)
                 EmptyState(
-                  title: query.isEmpty
+                  title: query.isEmpty && statusFilter == null
                       ? 'Belum ada kendaraan'
-                      : 'Nopol tidak ditemukan',
-                  description: query.isEmpty
+                      : 'Tidak ada kendaraan yang cocok',
+                  description: query.isEmpty && statusFilter == null
                       ? 'Gunakan Catat kendaraan masuk untuk menerima kendaraan.'
-                      : 'Periksa ejaan nopol atau hapus pencarian.',
+                      : 'Periksa nopol atau pilih filter status lainnya.',
                 ),
               ...rows.map(
                 (s) => Padding(
@@ -89,7 +115,50 @@ class _DashboardPageState extends State<DashboardPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        SessionSummary(s),
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 8,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(
+                              s['plate'] as String,
+                              style: Theme.of(context).textTheme.titleLarge,
+                            ),
+                            StatusPill(
+                              operationalLabel(
+                                operationalStatus(s, service.serverNow),
+                              ),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          '${s['vehicle_type'] == 'MOTOR' ? 'Motor' : 'Mobil'} | Masuk ${wib(s['entered_at'])}',
+                        ),
+                        Text(
+                          'Sudah dibayar ${money((s['amount_paid'] as num? ?? 0).toInt())}',
+                        ),
+                        FilledButton.tonalIcon(
+                          onPressed: !service.online
+                              ? null
+                              : () {
+                                  final open = widget.args.openCheckout;
+                                  if (open != null) {
+                                    open(s['id'] as String);
+                                  } else {
+                                    widget.args.navigate(2);
+                                  }
+                                },
+                          icon: const Icon(Icons.arrow_forward),
+                          label: Text(
+                            operationalStatus(s, service.serverNow) ==
+                                    OperationalStatus.authorized
+                                ? 'Konfirmasi kendaraan lewat'
+                                : operationalStatus(s, service.serverNow) ==
+                                      OperationalStatus.paid
+                                ? 'Verifikasi & izinkan keluar'
+                                : 'Buka tagihan kendaraan',
+                          ),
+                        ),
                         const SizedBox(height: 8),
                         if (s['authorization'] != null)
                           Text(
