@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -14,6 +15,44 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     prefs = await SharedPreferences.getInstance();
   });
+  test(
+    'Refresh feedback retains data and reentrant sync shares the request',
+    () async {
+      final reply = Completer<http.Response>();
+      var requests = 0;
+      final service = RemoteService(
+        RemoteRepository(
+          'http://test',
+          client: MockClient((_) {
+            requests++;
+            return reply.future;
+          }),
+        ),
+        prefs,
+      );
+      addTearDown(service.dispose);
+      service.online = true;
+      service.capacity = {'available': 12};
+      final states = <bool>[];
+      Future<void>? shared;
+      service.addListener(() {
+        states.add(service.syncing);
+        if (service.syncing) shared = service.sync();
+      });
+      final work = service.sync();
+      await Future<void>.delayed(Duration.zero);
+      expect(states, [true]);
+      expect(service.capacity?['available'], 12);
+      expect(identical(shared, work), true);
+      reply.complete(
+        http.Response(jsonEncode({'available': 10, 'server_time': 1000}), 200),
+      );
+      await work;
+      expect(states, [true, false]);
+      expect(requests, 1);
+      expect(service.capacity?['available'], 10);
+    },
+  );
   test(
     'AT01/02 local CRUD persists, normalized duplicate rejected, no session mutation',
     () async {

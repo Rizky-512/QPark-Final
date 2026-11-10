@@ -76,9 +76,6 @@ class _ParkingCostCardState extends State<ParkingCostCard> {
             'Sudah dibayar: ${money((widget.session['amount_paid'] as num? ?? 0).toInt())}',
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Minimum 1 jam; jam penuh dibulatkan ke bawah. Contoh: 1 jam 40 menit dihitung 1 jam, tepat 2 jam dihitung 2 jam.',
-          ),
           if (!cost.serverInvoice)
             const Text(
               'Ini perkiraan, bukan tagihan final. Nilai yang dibayar mengikuti tagihan server.',
@@ -94,8 +91,20 @@ class _ParkingCostCardState extends State<ParkingCostCard> {
               'Sisa waktu keluar: ${remaining(deadline, widget.service.serverNow)}',
             ),
           ],
-          const Text(
-            'Setelah pembayaran, tersedia 15 menit untuk keluar. Jika terlewati, tambahan 1 jam mengikuti tarif sesi; tambahan tertunda tidak menumpuk.',
+          const ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            title: Text('Rincian biaya'),
+            childrenPadding: EdgeInsets.only(bottom: 12),
+            expandedCrossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Minimum 1 jam; jam penuh dibulatkan ke bawah. Contoh: 1 jam 40 menit dihitung 1 jam, tepat 2 jam dihitung 2 jam.',
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Setelah pembayaran, tersedia 15 menit untuk keluar. Jika terlewati, tambahan 1 jam mengikuti tarif sesi; tambahan tertunda tidak menumpuk.',
+              ),
+            ],
           ),
         ],
       ),

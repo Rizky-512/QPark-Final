@@ -222,7 +222,9 @@ class _ManualPaymentPageState extends State<ManualPaymentPage> {
                 onPressed: busy || !service.online || validSelection == null
                     ? null
                     : quote,
-                icon: const Icon(Icons.receipt_long),
+                icon: busy
+                    ? const ActionProgress()
+                    : const Icon(Icons.receipt_long),
                 label: Text(busy ? 'Memuat tagihan…' : 'Muat ulang tagihan'),
               ),
               if (s != null) ...[
@@ -311,7 +313,9 @@ class _ManualPaymentPageState extends State<ManualPaymentPage> {
                         busy || !service.online || !verified || needsQuote
                         ? null
                         : pay,
-                    icon: const Icon(Icons.check_circle_outline),
+                    icon: busy
+                        ? const ActionProgress()
+                        : const Icon(Icons.check_circle_outline),
                     label: Text(
                       due == 0
                           ? 'Izinkan keluar tanpa tagihan baru'

@@ -1,24 +1,37 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:intl/intl.dart';
 import '../domain/errors.dart';
 import '../domain/models.dart';
 import '../logic/services.dart';
+import 'widgets/page_motion.dart';
 
 abstract final class AppColors {
   static const primary = Color(0xFF166534),
-      accent = Color(0xFF0F766E),
-      background = Color(0xFFF3F8F4),
+      accent = Color(0xFF166534),
+      background = Color(0xFFF7F8FA),
       surface = Color(0xFFFFFFFF),
-      text = Color(0xFF172C20),
-      muted = Color(0xFF53655A),
-      border = Color(0xFFD6E4DA),
+      text = Color(0xFF182230),
+      muted = Color(0xFF667085),
+      border = Color(0xFFE4E7EC),
       successBackground = Color(0xFFEAF5ED),
+      warning = Color(0xFF93370D),
+      warningBackground = Color(0xFFFFF4E5),
       danger = Color(0xFFB42318),
       dangerBackground = Color(0xFFFDEDEB);
 }
 
 ThemeData buildTheme() => ThemeData(
   useMaterial3: true,
+  pageTransitionsTheme: const PageTransitionsTheme(
+    builders: {
+      TargetPlatform.android: QParkPageTransitions(),
+      TargetPlatform.windows: QParkPageTransitions(),
+      TargetPlatform.linux: QParkPageTransitions(),
+      TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+      TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+    },
+  ),
   colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary).copyWith(
     primary: AppColors.primary,
     secondary: AppColors.accent,
@@ -26,8 +39,32 @@ ThemeData buildTheme() => ThemeData(
     onSurface: AppColors.text,
     error: AppColors.danger,
   ),
+  textTheme: const TextTheme(
+    headlineSmall: TextStyle(
+      fontSize: 24,
+      fontWeight: FontWeight.w700,
+      letterSpacing: -.4,
+    ),
+    titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+    titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+    bodyMedium: TextStyle(fontSize: 14, height: 1.45),
+    bodySmall: TextStyle(fontSize: 12, height: 1.4, color: AppColors.muted),
+  ),
+  navigationBarTheme: const NavigationBarThemeData(
+    backgroundColor: AppColors.surface,
+    surfaceTintColor: Colors.transparent,
+    indicatorColor: AppColors.successBackground,
+    elevation: 0,
+  ),
+  dialogTheme: DialogThemeData(
+    backgroundColor: AppColors.surface,
+    surfaceTintColor: Colors.transparent,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+  ),
   scaffoldBackgroundColor: AppColors.background,
   appBarTheme: const AppBarTheme(
+    elevation: 0,
+    scrolledUnderElevation: 0,
     backgroundColor: AppColors.surface,
     foregroundColor: AppColors.text,
     surfaceTintColor: AppColors.surface,
@@ -37,6 +74,10 @@ ThemeData buildTheme() => ThemeData(
     fillColor: AppColors.surface,
     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: AppColors.primary, width: 2),
+    ),
     enabledBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
       borderSide: const BorderSide(color: AppColors.border),
@@ -110,21 +151,23 @@ class ScreenArgs {
 }
 
 void showMessage(BuildContext context, String message, {bool error = false}) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      backgroundColor: error ? AppColors.danger : AppColors.primary,
-      content: Row(
-        children: [
-          Icon(
-            error ? Icons.error_outline : Icons.check_circle_outline,
-            color: AppColors.surface,
-          ),
-          const SizedBox(width: 12),
-          Expanded(child: Text(message)),
-        ],
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      SnackBar(
+        backgroundColor: error ? AppColors.danger : AppColors.primary,
+        content: Row(
+          children: [
+            Icon(
+              error ? Icons.error_outline : Icons.check_circle_outline,
+              color: AppColors.surface,
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message)),
+          ],
+        ),
       ),
-    ),
-  );
+    );
 }
 
 Future<bool> confirm(
@@ -211,7 +254,7 @@ class StatusPill extends StatelessWidget {
       color: problem
           ? AppColors.dangerBackground
           : pending
-          ? AppColors.background
+          ? AppColors.warningBackground
           : AppColors.successBackground,
       borderRadius: BorderRadius.circular(30),
     ),
@@ -225,7 +268,11 @@ class StatusPill extends StatelessWidget {
               ? Icons.schedule
               : Icons.check_circle_outline_rounded,
           size: 16,
-          color: problem ? AppColors.danger : AppColors.primary,
+          color: problem
+              ? AppColors.danger
+              : pending
+              ? AppColors.warning
+              : AppColors.primary,
         ),
         const SizedBox(width: 6),
         Flexible(
@@ -234,7 +281,11 @@ class StatusPill extends StatelessWidget {
             style: TextStyle(
               fontWeight: FontWeight.w600,
               fontSize: 12,
-              color: problem ? AppColors.danger : AppColors.primary,
+              color: problem
+                  ? AppColors.danger
+                  : pending
+                  ? AppColors.warning
+                  : AppColors.primary,
             ),
           ),
         ),
@@ -580,3 +631,18 @@ Future<void> showReceipt(BuildContext context, Visit visit) => showDialog<void>(
     ],
   ),
 );
+
+/// Compact progress feedback that respects reduced-motion preferences.
+class ActionProgress extends StatelessWidget {
+  const ActionProgress({super.key});
+  @override
+  Widget build(BuildContext context) => SizedBox.square(
+    dimension: 18,
+    child: MediaQuery.disableAnimationsOf(context)
+        ? const Icon(Icons.hourglass_top_rounded, size: 18)
+        : const CircularProgressIndicator(
+            strokeWidth: 2,
+            semanticsLabel: 'Memproses',
+          ),
+  );
+}

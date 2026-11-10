@@ -128,6 +128,9 @@ class _DashboardPageState extends State<DashboardPage> {
                               operationalLabel(
                                 operationalStatus(s, service.serverNow),
                               ),
+                              pending:
+                                  operationalStatus(s, service.serverNow) ==
+                                  OperationalStatus.unpaid,
                             ),
                           ],
                         ),

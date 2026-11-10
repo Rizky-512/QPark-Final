@@ -12,10 +12,12 @@ class ExitPage extends StatefulWidget {
     required this.args,
     this.sessionId,
     this.requestId = 0,
+    this.active = true,
   });
   final RemoteArgs args;
   final String? sessionId;
   final int requestId;
+  final bool active;
   @override
   State<ExitPage> createState() => _ExitPageState();
 }
@@ -35,7 +37,9 @@ class _ExitPageState extends State<ExitPage>
     super.initState();
     manual = widget.sessionId != null;
     ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
+      if (mounted && widget.active && widget.args.service.foreground) {
+        setState(() {});
+      }
     });
   }
 

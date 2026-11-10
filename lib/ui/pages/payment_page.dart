@@ -9,7 +9,8 @@ import '../remote_common.dart';
 import '../widgets/receipt_button.dart';
 
 class PaymentPage extends StatefulWidget {
-  const PaymentPage({super.key, required this.args});
+  const PaymentPage({super.key, required this.args, this.active = true});
+  final bool active;
   final RemoteArgs args;
   @override
   State<PaymentPage> createState() => _PaymentPageState();
@@ -23,7 +24,9 @@ class _PaymentPageState extends State<PaymentPage> {
   void initState() {
     super.initState();
     ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
+      if (mounted && widget.active && widget.args.service.foreground) {
+        setState(() {});
+      }
     });
   }
 
@@ -35,7 +38,7 @@ class _PaymentPageState extends State<PaymentPage> {
 
   Future<void> invoice() async {
     final ticket = widget.args.service.ticket;
-    if (ticket == null) return;
+    if (ticket == null || busy) return;
     setState(() => busy = true);
     try {
       final r = await widget.args.service.post('/api/invoice', {
@@ -242,7 +245,9 @@ class _PaymentPageState extends State<PaymentPage> {
                 FilledButton.icon(
                   key: const Key('invoice-open'),
                   onPressed: ready && !busy && service.online ? invoice : null,
-                  icon: const Icon(Icons.qr_code_rounded),
+                  icon: busy
+                      ? const ActionProgress()
+                      : const Icon(Icons.qr_code_rounded),
                   label: Text(
                     busy ? 'Memproses…' : 'Buka tagihan & QR pembayaran',
                   ),

@@ -25,9 +25,19 @@ class ReceiptButton extends StatelessWidget {
             actions: [
               TextButton(
                 onPressed: () async {
-                  await Clipboard.setData(ClipboardData(text: receipt.text));
-                  if (context.mounted) {
-                    showMessage(context, 'Bukti transaksi disalin.');
+                  try {
+                    await Clipboard.setData(ClipboardData(text: receipt.text));
+                    if (context.mounted) {
+                      showMessage(context, 'Bukti transaksi disalin.');
+                    }
+                  } catch (_) {
+                    if (context.mounted) {
+                      showMessage(
+                        context,
+                        'Tidak dapat menyalin otomatis. Pilih teks bukti untuk menyalin manual.',
+                        error: true,
+                      );
+                    }
                   }
                 },
                 child: const Text('Salin teks'),

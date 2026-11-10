@@ -257,6 +257,11 @@ class RemoteService extends ChangeNotifier {
 
   Future<void> _syncLoop() async {
     syncing = true;
+    // Publish after sync() has stored its shared future, so UI listeners cannot
+    // accidentally start a second request while showing refresh feedback.
+    scheduleMicrotask(() {
+      if (syncing) emit();
+    });
     timer?.cancel();
     int epoch;
     do {

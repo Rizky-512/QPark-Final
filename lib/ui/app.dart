@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import '../config.dart';
 import '../logic/remote_service.dart';
 import 'common.dart';
+import 'widgets/page_motion.dart';
 import 'remote_common.dart';
 import 'pages/login_page.dart';
 import 'pages/dashboard_page.dart';
@@ -152,7 +153,7 @@ class _ShellState extends State<_Shell> {
         ];
   void navigate(int value) {
     FocusManager.instance.primaryFocus?.unfocus();
-    setState(() => index = value);
+    if (index != value) setState(() => index = value);
   }
 
   Future<void> login() async {
@@ -300,6 +301,7 @@ class _ShellState extends State<_Shell> {
               args: args,
               sessionId: checkoutSessionId,
               requestId: checkoutRequest,
+              active: index == 2,
             ),
             RemoteHistoryPage(args: args, active: index == 3),
             if (service.admin) AdminPage(args: args),
@@ -307,7 +309,7 @@ class _ShellState extends State<_Shell> {
           ]
         : <Widget>[
             DriverPage(args: args, active: index == 0),
-            PaymentPage(args: args),
+            PaymentPage(args: args, active: index == 1),
             RemoteHistoryPage(args: args, active: index == 2),
           ];
     return LayoutBuilder(
@@ -400,6 +402,14 @@ class _ShellState extends State<_Shell> {
               Expanded(
                 child: Column(
                   children: [
+                    SizedBox(
+                      height: 2,
+                      child: service.syncing && service.online
+                          ? const LinearProgressIndicator(
+                              semanticsLabel: 'Memperbarui data',
+                            )
+                          : const SizedBox.shrink(),
+                    ),
                     if (!service.online)
                       Container(
                         width: double.infinity,
@@ -475,7 +485,7 @@ class _ShellState extends State<_Shell> {
                     Expanded(
                       child: SafeArea(
                         top: false,
-                        child: IndexedStack(
+                        child: PageMotion(
                           index: index,
                           children: pages.indexed
                               .map(
