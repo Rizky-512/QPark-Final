@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import '../common.dart';
 import '../remote_common.dart';
-import '../widgets/customer_link.dart';
+import '../widgets/customer_ticket_details.dart';
+import '../widgets/vehicle_gallery.dart';
 import '../../domain/customer_status.dart';
-import '../widgets/parking_cost_card.dart';
 
 class DriverPage extends StatefulWidget {
   const DriverPage({super.key, required this.args, this.active = true});
@@ -14,6 +14,17 @@ class DriverPage extends StatefulWidget {
 }
 
 class _DriverPageState extends State<DriverPage> {
+  bool detailsOpen = false;
+  Future<void> openDetails() async {
+    if (detailsOpen || widget.args.service.selected == null) return;
+    detailsOpen = true;
+    try {
+      await showCustomerTicketDetails(context, widget.args);
+    } finally {
+      detailsOpen = false;
+    }
+  }
+
   Future<void> edit([String? old]) async {
     final controller = TextEditingController(text: old);
     String? error;
@@ -107,167 +118,188 @@ class _DriverPageState extends State<DriverPage> {
         case CustomerAction.history:
           widget.args.navigate(2);
         case CustomerAction.link:
-          break;
+          await openDetails();
       }
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const PageHeading(
-          'Parkir lebih mudah',
-          'Simpan nopol, lalu hubungkan tiket melalui kode untuk petugas.',
-        ),
-        if (service.plates.length > 1) ...[
-          DropdownButtonFormField<String>(
-            key: ValueKey('selected-${service.selected}'),
-            initialValue: service.selected,
-            isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Kendaraan yang digunakan',
-            ),
-            items: service.plates
-                .map(
-                  (plate) => DropdownMenuItem(value: plate, child: Text(plate)),
-                )
-                .toList(),
-            onChanged: service.selectPlate,
-          ),
-          const SizedBox(height: 16),
-        ],
-        SurfaceCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                status.title,
-                key: const Key('customer-status'),
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 8),
-              Text(status.description),
-              if (!service.online && service.syncing)
-                const LinearProgressIndicator(),
-              if (service.ticket != null) ...[
-                const SizedBox(height: 16),
-                SessionSummary(service.ticket!),
-              ],
-              if (status.action != CustomerAction.link) ...[
-                const SizedBox(height: 16),
-                FilledButton.icon(
-                  key: const Key('customer-primary'),
-                  onPressed:
-                      service.retrying ||
-                          (status.action == CustomerAction.refresh &&
-                              service.syncing)
-                      ? null
-                      : primaryAction,
-                  icon: Icon(
-                    status.action == CustomerAction.exitQr
-                        ? Icons.qr_code
-                        : Icons.arrow_forward,
-                  ),
-                  label: Text(status.label),
-                ),
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-        if (status.action == CustomerAction.link) ...[
-          CustomerLinkCard(
-            key: ValueKey('${service.operationOwner}:${service.selected}'),
-            service: service,
-          ),
-          const SizedBox(height: 24),
-        ],
-        if (service.ticket != null &&
-            service.ticket!['state'] != 'COMPLETED') ...[
-          ParkingCostCard(
-            session: service.ticket!,
-            service: service,
-            active: widget.active,
-          ),
-          const SizedBox(height: 24),
-        ],
-        CapacityCard(service),
-        const SizedBox(height: 24),
-        SurfaceCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              PageHeading(
-                'Kendaraan saya',
-                service.customerIdentity == null
-                    ? 'Pilih kendaraan yang sedang Anda gunakan.'
-                    : 'Kendaraan tersimpan pada akun Anda.',
-                action: OutlinedButton.icon(
-                  key: const Key('vehicle-add'),
-                  onPressed: () => edit(),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Tambah'),
-                ),
-              ),
-              if (service.plates.isEmpty)
-                const EmptyState(
-                  title: 'Tambahkan nopol kendaraan',
-                  description:
-                      'Ketuk Tambah, lalu isi nopol. Tiket muncul setelah petugas mencatat kendaraan masuk.',
-                ),
-              ...service.plates.map(
-                (p) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Material(
-                    color: service.selected == p
-                        ? AppColors.successBackground
-                        : AppColors.surface,
-                    borderRadius: BorderRadius.circular(12),
-                    child: ListTile(
-                      onTap: () => service.selectPlate(p),
-                      leading: Icon(
-                        service.selected == p
-                            ? Icons.radio_button_checked
-                            : Icons.radio_button_unchecked,
+    return LayoutBuilder(
+      builder: (context, bounds) {
+        final wide = bounds.maxWidth >= 960;
+        final overview = Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SurfaceCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.local_parking_rounded,
                         color: AppColors.primary,
                       ),
-                      title: Text(
-                        p,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          status.title,
+                          key: const Key('customer-status'),
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
                       ),
-                      trailing: PopupMenuButton<String>(
-                        onSelected: (v) async {
-                          if (v == 'edit') {
-                            await edit(p);
-                            return;
-                          }
-                          if (await confirm(
-                            context,
-                            title: 'Hapus nopol tersimpan?',
-                            body:
-                                'Sesi parkir dan tagihan tetap ada. Hanya pilihan pada perangkat ini yang dihapus.',
-                            action: 'Hapus',
-                          )) {
-                            try {
-                              await service.removePlate(p);
-                            } catch (e) {
-                              if (context.mounted) remoteError(context, e);
-                            }
-                          }
-                        },
-                        itemBuilder: (_) => const [
-                          PopupMenuItem(value: 'edit', child: Text('Edit')),
-                          PopupMenuItem(value: 'delete', child: Text('Hapus')),
-                        ],
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    status.description,
+                    style: const TextStyle(color: AppColors.muted),
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton.icon(
+                    key: const Key('customer-primary'),
+                    onPressed:
+                        service.retrying ||
+                            (status.action == CustomerAction.refresh &&
+                                service.syncing)
+                        ? null
+                        : primaryAction,
+                    icon: Icon(
+                      status.action == CustomerAction.exitQr
+                          ? Icons.qr_code
+                          : Icons.arrow_forward,
+                    ),
+                    label: Text(status.label),
+                  ),
+                  if (service.ticket != null)
+                    TextButton.icon(
+                      onPressed: openDetails,
+                      icon: const Icon(Icons.receipt_long_outlined),
+                      label: const Text('Rincian tiket & biaya'),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            CapacityCard(service),
+          ],
+        );
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            PageHeading(
+              'Parkir lebih mudah',
+              'Kendaraan Anda, tiket Anda. Semua dalam satu tempat.',
+              action: OutlinedButton.icon(
+                key: const Key('vehicle-add'),
+                onPressed: () => edit(),
+                icon: const Icon(Icons.add),
+                label: const Text('Tambah kendaraan'),
+              ),
+            ),
+            if (service.plates.isNotEmpty) ...[
+              VehicleGallery(service: service, onDetails: openDetails),
+              const SizedBox(height: 20),
+            ],
+            if (wide && service.selected != null)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: overview),
+                  const SizedBox(width: 24),
+                  Expanded(
+                    child: SurfaceCard(
+                      key: const Key('desktop-ticket-panel'),
+                      child: CustomerTicketDetails(
+                        args: widget.args,
+                        active: widget.active,
                       ),
                     ),
                   ),
-                ),
+                ],
+              )
+            else
+              overview,
+            const SizedBox(height: 24),
+            SurfaceCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  PageHeading(
+                    'Kendaraan saya',
+                    service.customerIdentity == null
+                        ? 'Pilih kendaraan yang sedang Anda gunakan.'
+                        : 'Kendaraan tersimpan pada akun Anda.',
+                    action: OutlinedButton.icon(
+                      key: const Key('vehicle-manage-add'),
+                      onPressed: () => edit(),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Tambah'),
+                    ),
+                  ),
+                  if (service.plates.isEmpty)
+                    const EmptyState(
+                      title: 'Tambahkan nopol kendaraan',
+                      description:
+                          'Ketuk Tambah, lalu isi nopol. Tiket muncul setelah petugas mencatat kendaraan masuk.',
+                    ),
+                  ...service.plates.map(
+                    (p) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Material(
+                        color: service.selected == p
+                            ? AppColors.successBackground
+                            : AppColors.surface,
+                        borderRadius: BorderRadius.circular(12),
+                        child: ListTile(
+                          onTap: () => service.selectPlate(p),
+                          leading: Icon(
+                            service.selected == p
+                                ? Icons.radio_button_checked
+                                : Icons.radio_button_unchecked,
+                            color: AppColors.primary,
+                          ),
+                          title: Text(
+                            p,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          trailing: PopupMenuButton<String>(
+                            onSelected: (v) async {
+                              if (v == 'edit') {
+                                await edit(p);
+                                return;
+                              }
+                              if (await confirm(
+                                context,
+                                title: 'Hapus nopol tersimpan?',
+                                body:
+                                    'Sesi parkir dan tagihan tetap ada. Hanya pilihan pada perangkat ini yang dihapus.',
+                                action: 'Hapus',
+                              )) {
+                                try {
+                                  await service.removePlate(p);
+                                } catch (e) {
+                                  if (context.mounted) remoteError(context, e);
+                                }
+                              }
+                            },
+                            itemBuilder: (_) => const [
+                              PopupMenuItem(value: 'edit', child: Text('Edit')),
+                              PopupMenuItem(
+                                value: 'delete',
+                                child: Text('Hapus'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-      ],
+            ),
+            const SizedBox(height: 24),
+          ],
+        );
+      },
     );
   }
 }

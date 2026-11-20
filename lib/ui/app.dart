@@ -4,6 +4,7 @@ import '../config.dart';
 import '../logic/remote_service.dart';
 import 'common.dart';
 import 'widgets/page_motion.dart';
+import 'widgets/customer_ticket_details.dart';
 import 'remote_common.dart';
 import 'pages/login_page.dart';
 import 'pages/dashboard_page.dart';
@@ -511,6 +512,34 @@ class _ShellState extends State<_Shell> {
                         ),
                       ),
                     ),
+                    if (!service.officer &&
+                        index == 0 &&
+                        service.selected != null &&
+                        MediaQuery.viewInsetsOf(context).bottom == 0)
+                      Container(
+                        key: const Key('customer-action-dock'),
+                        width: double.infinity,
+                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+                        decoration: const BoxDecoration(
+                          color: AppColors.surface,
+                          border: Border(
+                            top: BorderSide(color: AppColors.border),
+                          ),
+                        ),
+                        child: SafeArea(
+                          top: false,
+                          bottom: wide,
+                          child: Center(
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 520),
+                              child: SizedBox(
+                                width: double.infinity,
+                                child: CustomerTicketAction(args: args),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),

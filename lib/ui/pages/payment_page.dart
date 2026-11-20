@@ -7,6 +7,7 @@ import '../../config.dart';
 import '../common.dart';
 import '../remote_common.dart';
 import '../widgets/receipt_button.dart';
+import '../widgets/payment_confirmation.dart';
 
 class PaymentPage extends StatefulWidget {
   const PaymentPage({super.key, required this.args, this.active = true});
@@ -18,7 +19,7 @@ class PaymentPage extends StatefulWidget {
 
 class _PaymentPageState extends State<PaymentPage> {
   bool ready = false, busy = false;
-  String? sessionId, invoiceId;
+  String? sessionId, invoiceId, confirmedSessionId;
   Timer? ticker;
   @override
   void initState() {
@@ -56,13 +57,22 @@ class _PaymentPageState extends State<PaymentPage> {
 
   Future<void> pay(Json invoice, String outcome) async {
     if (busy) return;
+    final owner = widget.args.service.operationOwner;
+    final payingSessionId = widget.args.service.ticket?['id'];
     setState(() => busy = true);
     try {
       final r = await widget.args.service.post('/api/payment', {
         'invoice_id': invoice['id'],
         'outcome': outcome,
       }, idempotent: true);
-      if (!mounted) return;
+      if (!mounted ||
+          owner != widget.args.service.operationOwner ||
+          payingSessionId != widget.args.service.ticket?['id']) {
+        return;
+      }
+      if (r['outcome'] == 'SUCCESS' && r['session']?['id'] == payingSessionId) {
+        setState(() => confirmedSessionId = payingSessionId as String?);
+      }
       showMessage(
         context,
         r['outcome'] == 'SUCCESS'
@@ -98,6 +108,7 @@ class _PaymentPageState extends State<PaymentPage> {
     if (sessionId != s?['id']) {
       sessionId = s?['id'] as String?;
       invoiceId = null;
+      confirmedSessionId = null;
       ready = false;
     }
     if (s == null) {
@@ -131,16 +142,9 @@ class _PaymentPageState extends State<PaymentPage> {
     final pendingPenalty = invoices.any(
       (i) => i['kind'] == 'PENALTY' && i['state'] == 'PENDING',
     );
-    return Column(
+    final paymentContent = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const PageHeading(
-          'Tiket & pembayaran',
-          'Pembayaran digital simulasi · tidak memindahkan uang sungguhan.',
-        ),
-        SurfaceCard(child: SessionSummary(s)),
-        ReceiptButton(session: s),
-        const SizedBox(height: 24),
         if (completed)
           const SurfaceCard(
             child: EmptyState(
@@ -345,6 +349,45 @@ class _PaymentPageState extends State<PaymentPage> {
               ],
             ),
           ),
+      ],
+    );
+    final summary = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SurfaceCard(child: SessionSummary(s)),
+        ReceiptButton(session: s),
+      ],
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const PageHeading(
+          'Tiket & pembayaran',
+          'Pembayaran digital simulasi ? tidak memindahkan uang sungguhan.',
+        ),
+        if (confirmedSessionId == s['id'] &&
+            valid &&
+            !completed &&
+            service.online)
+          PaymentConfirmation(key: ValueKey('payment-confirmed-${s['id']}')),
+        LayoutBuilder(
+          builder: (context, bounds) {
+            if (bounds.maxWidth >= 850) {
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(flex: 4, child: summary),
+                  const SizedBox(width: 24),
+                  Expanded(flex: 6, child: paymentContent),
+                ],
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [summary, const SizedBox(height: 24), paymentContent],
+            );
+          },
+        ),
       ],
     );
   }

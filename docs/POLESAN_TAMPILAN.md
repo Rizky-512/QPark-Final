@@ -1,5 +1,19 @@
 # Polesan tampilan QPark — 10 November 2026
 
+## UI interaktif — 20 November 2026
+
+Kartu kendaraan menggunakan ilustrasi vektor lokal, pilihan lewat swipe/tombol panah pada ponsel, dan susunan kartu pada desktop. Jenis kendaraan mengikuti tiket server; kendaraan tanpa tiket memakai simbol parkir agar tidak menebak jenisnya. Warna hijau QPark tetap menjadi aksen utama. Respons tekan, hover, fokus keyboard, dan pengaturan pengurangan animasi didukung.
+
+Mengetuk kendaraan terpilih membuka detail dengan transisi identitas kendaraan: panel bawah pada ponsel dan panel kanan pada layar lebar. Desktop juga menampilkan ringkasan dan rincian berdampingan. Tombol tindakan utama tetap tersedia di bawah beranda. Panel detail memeriksa pemilik akun dan kendaraan agar tiket lama tidak ditampilkan setelah pilihan berubah.
+
+Pembayaran yang dikonfirmasi server menampilkan animasi centang singkat, terpisah dari QR keluar yang tetap statis. Pembayaran yang belum pasti karena koneksi terputus tidak menampilkan animasi sukses. Halaman pembayaran memakai dua kolom pada layar lebar. Tarif, otorisasi keluar, API, dan logika transaksi tidak diubah.
+
+Tes tambahan mencakup pemilihan melalui swipe/panah, detail tiket, perubahan kendaraan saat panel terbuka, perubahan ukuran desktop ke ponsel, serta pembayaran terkonfirmasi dan koneksi gagal. Screenshot pengujian tersimpan di `build/ux_checks/interactive-*.png`. Animasi dan FPS pada HP fisik tetap perlu diuji langsung; tes widget tidak mengukur kelancaran perangkat.
+
+Verifikasi lokal: suite lengkap 109 tes lulus. Pemeriksaan screenshot kemudian menemukan posisi carousel yang keluar batas setelah resize; penyimpanan posisi halaman dinonaktifkan karena pilihan kendaraan sudah dikelola oleh service. Keempat tes interaksi dijalankan ulang dan lulus, termasuk pemeriksaan batas posisi kartu. `flutter analyze` dan pemeriksaan akhir `dart analyze lib test` tidak menemukan masalah. Build web release berhasil dan seluruh 71 entri manifest cocok dengan source.
+
+APK release terbaru berhasil dibuat di `build/app/outputs/flutter-apk/app-release.apk` dengan konfigurasi lokal yang sudah ada. Tidak ada perangkat Android terhubung melalui ADB saat verifikasi. Vercel menggunakan hasil build `rilis/web` melalui integrasi GitHub.
+
 Urutan implementasi: tema dan komponen, transisi, respons interaksi, lalu verifikasi.
 
 ## Tampilan dan gerakan
