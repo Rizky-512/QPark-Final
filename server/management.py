@@ -28,6 +28,13 @@ class ManagementMixin:
                 else:db.execute('INSERT INTO officers(id,username,password_hash,salt,active,role) VALUES(?,?,?,?,1,?)',(uid('OFF'),username,hashed,salt,role))
             db.execute("UPDATE invoices SET payment_method='QR_SIMULASI' WHERE state='PAID' AND payment_method IS NULL")
             db.execute('INSERT INTO migrations VALUES(2,?)',(self.clock(),))
+        values=self.settings(db)
+        if 'car_capacity' not in values:
+            used={kind:db.execute("SELECT count(*) FROM sessions WHERE state!='COMPLETED' AND vehicle_type=?",(kind,)).fetchone()[0] for kind in ('MOBIL','MOTOR')}
+            values['car_capacity']=max(used['MOBIL'],values['capacity']//2)
+            values['motor_capacity']=max(used['MOTOR'],values['capacity']-values['car_capacity'])
+            values['capacity']=values['car_capacity']+values['motor_capacity']
+            db.execute("UPDATE metadata SET value=? WHERE key='parking_settings'",(json.dumps(values),))
         db.commit()
 
     def settings(self,db):
@@ -85,10 +92,13 @@ class ManagementMixin:
             if path=='/api/admin/settings':
                 if method=='GET':return {'settings':self.settings(db)}
                 if method=='POST':
-                    values={k:data.get(k) for k in ('capacity','car_rate','motor_rate')}
-                    if any(type(v) is not int or v<1 or v>1000000 for v in values.values()):raise RuleError('Isian harus bilangan bulat 1–1.000.000.','settings',400)
-                    occupied=db.execute("SELECT count(*) FROM sessions WHERE state!='COMPLETED'").fetchone()[0]
-                    if values['capacity']<occupied:raise RuleError('Kapasitas tidak boleh di bawah jumlah kendaraan aktif.','capacity')
+                    values={k:data.get(k) for k in ('car_capacity','motor_capacity','car_rate','motor_rate')}
+                    if any(type(v) is not int or v<(0 if k.endswith('capacity') else 1) or v>1000000 for k,v in values.items()):
+                        raise RuleError('Isi kapasitas 0-1.000.000 dan tarif 1-1.000.000.', 'settings',400)
+                    for kind,key in [('MOBIL','car_capacity'),('MOTOR','motor_capacity')]:
+                        occupied=db.execute("SELECT count(*) FROM sessions WHERE state!='COMPLETED' AND vehicle_type=?",(kind,)).fetchone()[0]
+                        if values[key]<occupied:raise RuleError('Kapasitas '+kind+' tidak boleh di bawah jumlah kendaraan aktif.','capacity')
+                    values['capacity']=values['car_capacity']+values['motor_capacity']
                     db.execute("UPDATE metadata SET value=? WHERE key='parking_settings'",(json.dumps(values),))
                     self.audit(db,'SETTINGS_CHANGED','parking',actor,now,json.dumps(values));return {'settings':values}
             if path=='/api/admin/users':

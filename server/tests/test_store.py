@@ -12,6 +12,8 @@ class StoreTest(unittest.TestCase):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
         self.path=Path(self.tmp.name)/'q.db';self.now=1800000000.0
         self.store=Store(self.path,lambda:self.now)
+        admin=self.store.dispatch('POST','/api/login',{'username':'admin','password':'admin123'})['token']
+        self.store.dispatch('POST','/api/admin/settings',{'car_capacity':20,'motor_capacity':0,'car_rate':7000,'motor_rate':2000},admin)
         self.store.add_officer('operator_uji','Testing123!')
         self.token=self.call('login',username='operator_uji',password='Testing123!')['token']
     def call(self,path,**data):

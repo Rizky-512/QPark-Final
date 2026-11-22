@@ -78,6 +78,15 @@ class RemoteService extends ChangeNotifier {
     _restoreDemoVehicles();
     emit();
     unawaited(sync());
+    unawaited(
+      refreshVehicleTypes().catchError((Object e) {
+        if (!disposed && customerDemo) {
+          customerError =
+              'Kategori kendaraan belum dapat dimuat. Coba lagi saat koneksi tersedia.';
+          emit();
+        }
+      }),
+    );
   }
 
   Future<void> loginCustomerGoogle() async {
@@ -91,7 +100,20 @@ class RemoteService extends ChangeNotifier {
   String _selectedKey(CustomerIdentity identity) =>
       'qpark_selected_supabase_${identity.id}';
 
+  final Map<String, String> vehicleTypes = {};
+
+  Future<void> refreshVehicleTypes() async {
+    final owner = operationOwner;
+    final r = await repository.request('GET', '/api/customer/vehicle-types');
+    if (disposed || operationOwner != owner) return;
+    vehicleTypes
+      ..clear()
+      ..addAll(Map<String, String>.from(r['vehicle_types'] as Map? ?? {}));
+    emit();
+  }
+
   void _restoreDemoVehicles() {
+    vehicleTypes.clear();
     plates = List<String>.from(
       preferences.getStringList('qpark_plates_v3') ?? [],
     );
@@ -118,6 +140,7 @@ class RemoteService extends ChangeNotifier {
 
     // Never expose the previous local/demo user's plates while cloud data loads.
     plates = [];
+    vehicleTypes.clear();
     selected = null;
     emit();
     final repository = customerData;
@@ -130,6 +153,8 @@ class RemoteService extends ChangeNotifier {
         return;
       }
       plates = cloudPlates;
+      await refreshVehicleTypes();
+      if (disposed || _contextEpoch != epoch) return;
       final saved = preferences.getString(_selectedKey(identity));
       selected = plates.contains(saved)
           ? saved
@@ -296,7 +321,7 @@ class RemoteService extends ChangeNotifier {
         await preferences.setStringList('qpark_revocations_v3', revoked);
       }
       Json? nextTicket;
-      if (currentPlate != null && currentToken == null) {
+      if (signedIn && currentPlate != null && currentToken == null) {
         final prior = (ticket?['plate']) == currentPlate
             ? (ticket?['id'])
             : null;
@@ -341,10 +366,23 @@ class RemoteService extends ChangeNotifier {
     }
   }
 
-  Future<void> savePlate(String value, {String? replacing}) async {
+  Future<void> savePlate(
+    String value, {
+    String? replacing,
+    String? vehicleType,
+  }) async {
     final normal = normalizePlate(value);
     if (plates.contains(normal) && normal != replacing) {
       throw const QParkException('Nopol sudah tersimpan di perangkat ini.');
+    }
+    final owner = operationOwner;
+    if (vehicleType != null) {
+      await repository.request(
+        'POST',
+        '/api/customer/vehicle-type',
+        body: {'plate': normal, 'vehicle_type': vehicleType},
+      );
+      if (disposed || operationOwner != owner) return;
     }
     final next = List<String>.from(plates);
     if (replacing == null) {
@@ -366,6 +404,17 @@ class RemoteService extends ChangeNotifier {
     }
     if (customerIdentity?.id != identity?.id || disposed) return;
     plates = next;
+    if (vehicleType != null) vehicleTypes[normal] = vehicleType;
+    if (replacing != null &&
+        replacing != normal &&
+        vehicleTypes.containsKey(replacing)) {
+      await repository.request(
+        'POST',
+        '/api/customer/vehicle-type',
+        body: {'plate': replacing, 'remove': true},
+      );
+      vehicleTypes.remove(replacing);
+    }
     await selectPlate(normal);
   }
 
@@ -379,6 +428,15 @@ class RemoteService extends ChangeNotifier {
       await preferences.setStringList('qpark_plates_v3', next);
     }
     if (customerIdentity?.id != identity?.id || disposed) return;
+    if (vehicleTypes.containsKey(value)) {
+      await repository.request(
+        'POST',
+        '/api/customer/vehicle-type',
+        body: {'plate': value, 'remove': true},
+      );
+    }
+    if (customerIdentity?.id != identity?.id || disposed) return;
+    vehicleTypes.remove(value);
     plates = next;
     await selectPlate(
       selected == value ? (plates.isEmpty ? null : plates.first) : selected,

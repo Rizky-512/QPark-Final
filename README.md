@@ -1,4 +1,4 @@
-# QPark v5 — Login Customer & Analisis Parkir
+# QPark - Parkir Mobil dan Motor
 
 Polesan tampilan terbaru: palet netral dengan identitas hijau, transisi tab yang mempertahankan formulir, indikator proses, serta rincian biaya yang lebih ringkas. Baca [catatan tampilan dan pengujian](docs/POLESAN_TAMPILAN.md).
 
@@ -9,14 +9,14 @@ Pembaruan prototipe: akses tiket terikat pelanggan, kode penghubung petugas, pol
 
 Revisi lanjutan dari QPark Flutter yang sama. Styling hijau dan komponen tema dipertahankan. Pembayaran QR tetap tersedia; input kendaraan manual, pembayaran manual, admin, dan riwayat dipulihkan sesuai permintaan terbaru.
 
-Tambahan v5: login customer sebagai halaman awal, opsi admin/petugas di bawah, dan menu **Analisis** khusus admin. Login Google dan penyimpanan nopol per akun melalui Supabase tersedia saat build diberi konfigurasi project. Lihat [panduan Supabase](docs/SUPABASE_MIGRASI.md), [perubahan v5](docs/PERUBAHAN_V5.md), dan [pengujian v5](docs/HASIL_PENGUJIAN_V5.md).
+Beranda publik menampilkan sisa slot Mobil dan Motor tanpa login. Login customer bersifat opsional; akses admin/petugas tetap dilindungi. Menu **Analisis** tersedia khusus admin. Lihat [panduan kapasitas terpisah](docs/KAPASITAS_TERPISAH.md). Login Google dan penyimpanan nopol per akun melalui Supabase tersedia saat build diberi konfigurasi project. Lihat [panduan Supabase](docs/SUPABASE_MIGRASI.md), [perubahan v5](docs/PERUBAHAN_V5.md), dan [pengujian v5](docs/HASIL_PENGUJIAN_V5.md).
 
 ## Jalankan tanpa IDE
 
 1. Ekstrak seluruh ZIP ke folder biasa.
 2. Pasang Python **3.10+** dan pastikan perintah `py` atau `python` tersedia.
 3. Buka **`buka_web.bat`**. Biarkan terminal terbuka.
-4. Browser membuka `http://localhost:7357`. Halaman pertama adalah Login customer. Pilih Coba sebagai customer demo untuk melanjutkan.
+4. Browser membuka `http://localhost:7357`. Halaman pertama menampilkan sisa slot Mobil dan Motor. Login atau Coba sebagai customer demo hanya diperlukan untuk fitur pribadi.
 5. Pilih **Login admin / petugas** untuk masuk menggunakan akun berikut.
 
 | Peran | Username | Password awal |
@@ -42,7 +42,7 @@ Riwayat menyediakan pencarian nopol untuk staf, filter jenis kendaraan/metode pe
 ## Alur manual paling mudah
 
 1. Petugas masuk dengan `petugas / petugas123`.
-2. Menu **Masuk** → pilih **Mobil** atau **Motor** → ketik nopol → centang verifikasi → **Verifikasi & terima kendaraan**.
+2. Menu **Masuk** → ketik nopol; kategori tersimpan dipilih otomatis, atau pilih **Masuk Mobil** / **Masuk Motor** untuk nopol belum terdaftar → centang verifikasi → **Verifikasi & terima kendaraan**.
 3. Foto tidak wajib pada mode manual. Jika ingin memakai kamera/foto uji, aktifkan **Gunakan gambar kendaraan**, pilih gambar, dan centang gambar terbaca.
 4. Menu **Keluar → Bayar manual** → pilih kendaraan aktif → **Muat tagihan manual**.
 5. Isi uang diterima dengan angka tanpa titik, misalnya `10000`. Kembalian dihitung otomatis.
@@ -61,8 +61,8 @@ Pembayaran QRIS dan gerbang masih **simulasi**, tanpa perpindahan uang nyata. In
 
 - Mobil: **Rp7.000/jam**; Motor: **Rp2.000/jam**.
 - Jumlah jam penuh dibulatkan ke bawah, minimum satu jam: 40 menit = 1 jam; 1 jam 40 menit = 1 jam; tepat 2 jam = 2 jam.
-- Kapasitas awal **20 kendaraan gabungan**. Penuh berarti menolak kendaraan baru.
-- Admin dapat mengubah tarif dan kapasitas. Tarif tersimpan ketika kendaraan masuk; perubahan tarif tidak mengubah sesi aktif secara retroaktif.
+- Kapasitas awal **10 Mobil dan 10 Motor**. Setiap kategori memiliki kuota sendiri; kategori yang penuh tidak menghalangi kategori lain.
+- Admin dapat mengubah tarif dan kapasitas Mobil/Motor secara terpisah. Kapasitas tidak boleh kurang dari jumlah kendaraan aktif pada kategori tersebut. Tarif tersimpan ketika kendaraan masuk; perubahan tarif tidak mengubah sesi aktif secara retroaktif.
 - Snapshot tagihan dasar berlaku 5 menit.
 - Pembayaran berhasil memberi 15 menit; lewat batas dikenakan tambahan satu jam sesuai tarif sesi. Pelunasan tambahan memberi 15 menit baru; tagihan tambahan yang belum lunas tidak menumpuk.
 - Izin petugas berlaku 120 detik. Pembayaran manual langsung memberikan izin setelah verifikasi. Kapasitas tetap terpakai sampai kendaraan lewat; batal/kedaluwarsa izin tidak menghapus sesi atau pembayaran.
@@ -103,6 +103,6 @@ Untuk APK dengan backend Supabase, gunakan `flutter build apk --debug --dart-def
 
 Jika build Android berhenti pada `compileDebugJavaWithJavac` dengan pesan `Cannot query the value of this provider because it has no value available`, jalankan `flutter doctor -v` terlebih dahulu. Pada komputer pengembangan QPark, SDK Platform 36 tercatat terpasang tetapi `platforms/android-36/android.jar` dan `core-for-system-modules.jar` hilang. Memasang ulang platform SDK memulihkan berkas tersebut. Periksa kelengkapan SDK sebelum mengganti versi Gradle atau Kotlin. Gunakan Android Studio SDK Manager untuk memasang ulang **Android SDK Platform 36**, atau pindahkan instalasi platform yang tidak lengkap ke cadangan di luar direktori SDK lalu jalankan `sdkmanager "platforms;android-36"` dari Android SDK Command-line Tools. Jangan menghapus seluruh SDK atau data aplikasi untuk memperbaiki paket platform ini.
 
-`docs/PERUBAHAN_V4.md` menjelaskan perubahan kebutuhan terhadap SRS sebelumnya. `docs/HASIL_PENGUJIAN.md` mencatat hasil nyata dan batas pengujian. Dokumentasi lama berada di `docs/legacy_v2` dan `docs/legacy_v3`.
+`docs/PERUBAHAN_V4.md` menjelaskan perubahan kebutuhan terhadap SRS sebelumnya. `docs/HASIL_PENGUJIAN.md` mencatat hasil nyata dan batas pengujian. Prototipe Flet dan dokumentasi v2/v3 telah dikeluarkan dari versi aktif; arsipnya tetap tersedia di [riwayat GitHub sebelum perapian](https://github.com/Rizky-512/QPark-Final/tree/f71d823).
 
 Smoke test browser opsional untuk developer: pasang Node.js dan Playwright (`npm install --no-save playwright` serta `npx playwright install chromium`), lalu `node scripts/browser_smoke.cjs`. Tes memakai database sementara dan port 7367; `PYTHON`, `QPARK_TEST_PORT`, dan `PLAYWRIGHT_CHROMIUM_EXECUTABLE` dapat dikonfigurasi. Node/Playwright tidak diperlukan untuk menjalankan aplikasi biasa.

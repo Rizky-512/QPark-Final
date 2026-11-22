@@ -190,6 +190,7 @@ void main() {
                 .onPressed,
             isNull,
           );
+          await tester.ensureVisible(find.byKey(const Key('customer-demo')));
           await tester.tap(find.byKey(const Key('customer-demo')));
           await settle(tester);
           expect(find.text('Parkir lebih mudah'), findsOneWidget);

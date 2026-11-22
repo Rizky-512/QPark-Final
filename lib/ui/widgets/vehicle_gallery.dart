@@ -148,7 +148,9 @@ class _VehicleGalleryState extends State<VehicleGallery> {
                 tag: vehicleHeroTag(service, plate),
                 child: VehicleIdentity(
                   plate: plate,
-                  vehicleType: ticket?['vehicle_type'] as String?,
+                  vehicleType:
+                      ticket?['vehicle_type'] as String? ??
+                      service.vehicleTypes[plate],
                 ),
               ),
               const SizedBox(height: 12),

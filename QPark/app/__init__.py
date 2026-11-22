@@ -1,1 +1,0 @@
-"""Paket aplikasi utama."""

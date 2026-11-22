@@ -8,6 +8,8 @@ from .rules import RuleError, plate
 class CustomerAccessMixin:
     def migrate_customer_access(self, db):
         db.executescript('''
+          CREATE TABLE IF NOT EXISTS vehicle_categories (owner TEXT NOT NULL, plate TEXT NOT NULL, vehicle_type TEXT NOT NULL CHECK(vehicle_type IN ('MOBIL','MOTOR')), PRIMARY KEY(owner,plate));
+          CREATE INDEX IF NOT EXISTS vehicle_categories_plate ON vehicle_categories(plate);
           CREATE TABLE IF NOT EXISTS customer_links (
             session_id TEXT PRIMARY KEY REFERENCES sessions(id),
             owner TEXT NOT NULL
@@ -24,6 +26,10 @@ class CustomerAccessMixin:
         parts = urlsplit(full_path)
         path, query = parts.path, parse_qs(parts.query)
         owner = 'demo:' + digest(key) if re.fullmatch(r'[a-f0-9]{48}', key or '') else None
+        from .vehicle_categories import category_request
+        category = category_request(self, db, method, path, query, data, token, now, owner)
+        if category is not None:
+            return category
         if path == '/api/customer/code' and method == 'POST':
             if owner is None:
                 raise RuleError('Identitas perangkat diperlukan.', 'customer_identity', 401)

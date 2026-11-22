@@ -12,6 +12,7 @@ class AdminPage extends StatefulWidget {
 
 class _AdminPageState extends State<AdminPage> {
   final capacity = TextEditingController(),
+      motorCapacity = TextEditingController(),
       car = TextEditingController(),
       motor = TextEditingController(),
       username = TextEditingController(),
@@ -28,7 +29,7 @@ class _AdminPageState extends State<AdminPage> {
 
   @override
   void dispose() {
-    for (final c in [capacity, car, motor, username, password]) {
+    for (final c in [capacity, motorCapacity, car, motor, username, password]) {
       c.dispose();
     }
     super.dispose();
@@ -50,7 +51,8 @@ class _AdminPageState extends State<AdminPage> {
       );
       if (!mounted) return;
       setState(() {
-        capacity.text = '${r['settings']['capacity']}';
+        capacity.text = '${r['settings']['car_capacity'] ?? ''}';
+        motorCapacity.text = '${r['settings']['motor_capacity'] ?? ''}';
         car.text = '${r['settings']['car_rate']}';
         motor.text = '${r['settings']['motor_rate']}';
         users = (u['users'] as List).cast<Json>();
@@ -67,7 +69,8 @@ class _AdminPageState extends State<AdminPage> {
     setState(() => busy = true);
     try {
       await widget.args.service.post('/api/admin/settings', {
-        'capacity': int.tryParse(capacity.text),
+        'car_capacity': int.tryParse(capacity.text),
+        'motor_capacity': int.tryParse(motorCapacity.text),
         'car_rate': int.tryParse(car.text),
         'motor_rate': int.tryParse(motor.text),
       });
@@ -142,9 +145,13 @@ class _AdminPageState extends State<AdminPage> {
             TextField(
               controller: capacity,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Kapasitas gabungan kendaraan',
-              ),
+              decoration: const InputDecoration(labelText: 'Kapasitas mobil'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: motorCapacity,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Kapasitas motor'),
             ),
             const SizedBox(height: 12),
             TextField(

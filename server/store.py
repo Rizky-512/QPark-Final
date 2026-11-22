@@ -220,10 +220,8 @@ class Store(ManagementMixin, CustomerAccessMixin):
                 self.audit(db,'LOGOUT',login['officer_id'],login['officer_id'],now)
             return {'revoked':True}
         if method=='GET' and path=='/api/capacity':
-            occupied=db.execute("SELECT count(*) FROM sessions WHERE state!='COMPLETED'").fetchone()[0]
-            settings=self.settings(db)
-            total=settings['capacity']
-            return {'total':total,'occupied':occupied,'available':max(0,total-occupied),'full':occupied>=total, 'rates':{'MOBIL':settings['car_rate'],'MOTOR':settings['motor_rate']}}
+            from .vehicle_categories import capacity_view
+            return capacity_view(db, self.settings(db))
         if method=='GET' and path=='/api/ticket':
             p=plate(query.get('plate',[''])[0])
             found=db.execute("SELECT id FROM sessions WHERE plate=? AND state!='COMPLETED'",(p,)).fetchone()
@@ -277,10 +275,11 @@ class Store(ManagementMixin, CustomerAccessMixin):
                         raise RuleError('Kendaraan wajib diverifikasi. Jika menggunakan gambar, pastikan gambar terbaca.','verification',400)
                     if db.execute("SELECT 1 FROM sessions WHERE plate=? AND state!='COMPLETED'",(p,)).fetchone():
                         raise RuleError('Nopol masih memiliki sesi aktif.','duplicate_plate')
-                    kind=data.get('vehicle_type','MOBIL')
+                    registered=db.execute('SELECT vehicle_type FROM vehicle_categories WHERE plate=? LIMIT 1',(p,)).fetchone()
+                    kind=registered['vehicle_type'] if registered else data.get('vehicle_type','MOBIL')
                     if kind not in ('MOBIL','MOTOR'):raise RuleError('Pilih Mobil atau Motor.','vehicle',400)
                     settings=self.settings(db)
-                    if db.execute("SELECT count(*) FROM sessions WHERE state!='COMPLETED'").fetchone()[0]>=settings['capacity']:
+                    if db.execute("SELECT count(*) FROM sessions WHERE state!='COMPLETED' AND vehicle_type=?",(kind,)).fetchone()[0]>=settings['motor_capacity' if kind=='MOTOR' else 'car_capacity']:
                         raise RuleError('Area parkir penuh. Kendaraan ditolak.','full')
                     sid=uid('QP')
                     db.execute("INSERT INTO sessions(id,plate,entered_at,entered_by,state,vehicle_type,hourly_rate) VALUES(?,?,?,?,'IN_AREA',?,?)",(sid,p,now,actor,kind,settings['motor_rate' if kind=='MOTOR' else 'car_rate']))

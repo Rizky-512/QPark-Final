@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
@@ -18,12 +19,67 @@ class _EntryPageState extends State<EntryPage>
   final plate = TextEditingController();
   Uint8List? photo;
   String source = 'test_photo';
-  String vehicleType = 'MOBIL';
+  String? vehicleType;
+  String? registeredType, resolvedPlate, lookupError;
+  bool lookingUp = false;
+  Timer? lookupTimer;
+  int lookupEpoch = 0;
+  String get normalizedPlate =>
+      plate.text.toUpperCase().replaceAll(RegExp(r'\s+'), '');
+
+  void changedPlate(String _) {
+    lookupTimer?.cancel();
+    final epoch = ++lookupEpoch;
+    setState(() {
+      verified = false;
+      registeredType = null;
+      vehicleType = null;
+      resolvedPlate = null;
+      lookupError = null;
+      lookingUp = normalizedPlate.isNotEmpty;
+    });
+    if (normalizedPlate.isEmpty) return;
+    lookupTimer = Timer(
+      const Duration(milliseconds: 350),
+      () => lookupType(epoch),
+    );
+  }
+
+  Future<void> lookupType(int epoch) async {
+    final value = normalizedPlate;
+    final token = widget.args.service.token;
+    try {
+      final r = await widget.args.service.repository.request(
+        'GET',
+        '/api/officer/vehicle-type?plate=${Uri.encodeComponent(value)}',
+        token: token,
+      );
+      if (!mounted ||
+          epoch != lookupEpoch ||
+          token != widget.args.service.token) {
+        return;
+      }
+      setState(() {
+        registeredType = r['vehicle_type'] as String?;
+        resolvedPlate = value;
+        lookingUp = false;
+      });
+    } catch (_) {
+      if (!mounted || epoch != lookupEpoch) return;
+      setState(() {
+        lookingUp = false;
+        lookupError = 'Kategori belum dapat diperiksa. Coba lagi.';
+      });
+    }
+  }
+
   bool readable = false, verified = false, busy = false, manual = true;
   @override
   bool get wantKeepAlive => true;
   @override
   void dispose() {
+    lookupTimer?.cancel();
+    lookupEpoch++;
     plate.dispose();
     super.dispose();
   }
@@ -61,12 +117,19 @@ class _EntryPageState extends State<EntryPage>
   }
 
   Future<void> save() async {
-    if (busy || (!manual && (photo == null || !readable)) || !verified) return;
+    if (busy ||
+        (registeredType ?? vehicleType) == null ||
+        resolvedPlate != normalizedPlate ||
+        lookingUp ||
+        (!manual && (photo == null || !readable)) ||
+        !verified) {
+      return;
+    }
     setState(() => busy = true);
     try {
       final r = await widget.args.service.post('/api/officer/entry', {
         'plate': plate.text,
-        'vehicle_type': vehicleType,
+        'vehicle_type': registeredType ?? vehicleType,
         'verified': verified,
         'image_readable': manual ? false : readable,
         'image_source': manual ? 'manual' : source,
@@ -77,6 +140,9 @@ class _EntryPageState extends State<EntryPage>
         readable = false;
         verified = false;
         plate.clear();
+        registeredType = null;
+        resolvedPlate = null;
+        lookupEpoch++;
       });
       showMessage(
         context,
@@ -98,7 +164,7 @@ class _EntryPageState extends State<EntryPage>
       children: [
         const PageHeading(
           'Kendaraan masuk',
-          'Input nopol dan jenis kendaraan, lalu verifikasi kendaraan yang datang.',
+          'Isi nopol. Kategori tersimpan digunakan otomatis; kendaraan baru memilih jalur masuk mobil atau motor.',
         ),
         CapacityCard(s),
         const SizedBox(height: 24),
@@ -108,29 +174,12 @@ class _EntryPageState extends State<EntryPage>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                DropdownButtonFormField<String>(
-                  initialValue: vehicleType,
-                  decoration: const InputDecoration(
-                    labelText: 'Jenis kendaraan',
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'MOBIL', child: Text('Mobil')),
-                    DropdownMenuItem(value: 'MOTOR', child: Text('Motor')),
-                  ],
-                  onChanged: busy
-                      ? null
-                      : (v) => setState(() {
-                          vehicleType = v!;
-                          verified = false;
-                        }),
-                ),
-                const SizedBox(height: 16),
                 TextField(
                   key: const Key('entry-plate'),
                   controller: plate,
                   enabled: !busy,
                   textCapitalization: TextCapitalization.characters,
-                  onChanged: (_) => setState(() => verified = false),
+                  onChanged: changedPlate,
                   decoration: const InputDecoration(
                     labelText: 'Nomor polisi',
                     hintText: 'B 1234 AB',
@@ -139,6 +188,38 @@ class _EntryPageState extends State<EntryPage>
                     helperMaxLines: 3,
                   ),
                 ),
+                const SizedBox(height: 12),
+                if (lookingUp) const LinearProgressIndicator(),
+                if (lookupError != null)
+                  TextButton.icon(
+                    onPressed: () => changedPlate(plate.text),
+                    icon: const Icon(Icons.refresh),
+                    label: Text(lookupError!),
+                  ),
+                if (registeredType != null)
+                  Text(
+                    'Kategori tersimpan: ${registeredType == 'MOTOR' ? 'Motor' : 'Mobil'}',
+                    key: const Key('entry-known-category'),
+                  )
+                else if (resolvedPlate == normalizedPlate &&
+                    normalizedPlate.isNotEmpty)
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 8,
+                    children: [
+                      for (final kind in ['MOBIL', 'MOTOR'])
+                        ChoiceChip(
+                          key: ValueKey('entry-type-$kind'),
+                          label: Text(
+                            kind == 'MOBIL' ? 'Masuk Mobil' : 'Masuk Motor',
+                          ),
+                          selected: vehicleType == kind,
+                          onSelected: busy
+                              ? null
+                              : (_) => setState(() => vehicleType = kind),
+                        ),
+                    ],
+                  ),
                 const SizedBox(height: 8),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
@@ -245,17 +326,24 @@ class _EntryPageState extends State<EntryPage>
                   onPressed:
                       busy ||
                           !s.online ||
+                          (registeredType ?? vehicleType) == null ||
+                          lookingUp ||
+                          resolvedPlate != normalizedPlate ||
                           (!manual && (photo == null || !readable)) ||
                           !verified ||
                           plate.text.trim().isEmpty ||
-                          s.capacity?['full'] == true
+                          s.capacity?['categories']?[registeredType ??
+                                  vehicleType]?['full'] ==
+                              true
                       ? null
                       : save,
                   icon: const Icon(Icons.add_circle_outline),
                   label: Text(
                     busy
                         ? 'Menyimpan…'
-                        : s.capacity?['full'] == true
+                        : s.capacity?['categories']?[registeredType ??
+                                  vehicleType]?['full'] ==
+                              true
                         ? 'Penuh · kendaraan ditolak'
                         : 'Verifikasi & terima kendaraan',
                   ),

@@ -1,1 +1,0 @@
-"""Pengujian otomatis QPark."""

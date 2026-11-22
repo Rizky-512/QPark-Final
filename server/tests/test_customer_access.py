@@ -40,7 +40,7 @@ class CustomerAccessTest(unittest.TestCase):
         self.assertEqual(self.request('GET', '/api/history?plate=EXPIRE1')[0], 401)
 
     def test_final_slot_race_only_one_entry(self):
-        self.store.dispatch('POST', '/api/admin/settings', {'capacity': 1, 'car_rate': 7000, 'motor_rate': 2000},
+        self.store.dispatch('POST', '/api/admin/settings', {'car_capacity': 1, 'motor_capacity': 0, 'car_rate': 7000, 'motor_rate': 2000},
                             self.store.dispatch('POST', '/api/login', {'username': 'admin', 'password': 'admin123'})['token'])
         def enter(i):
             return self.request('POST', '/api/officer/entry', {

@@ -34,8 +34,9 @@ def main():
         for migration in sorted((root/'supabase/migrations').glob('*.sql')):
             sql(migration.read_text(encoding='utf-8'), database)
             print('PASS', migration.name, flush=True)
-        sql((root/'supabase/tests/customer_access.sql').read_text(encoding='utf-8'), database)
-        print('PASS customer ownership, private RPC grants, payment replay, history isolation and expiry', flush=True)
+        for test in sorted((root/'supabase/tests').glob('*.sql')):
+            sql(test.read_text(encoding='utf-8'), database)
+            print('PASS', test.name, flush=True)
     except subprocess.CalledProcessError as error:
         print(error.stderr)
         raise

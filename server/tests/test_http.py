@@ -16,6 +16,8 @@ class HTTPTest(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
         self.store=Store(Path(self.tmp.name)/'db.sqlite')
+        admin=self.store.dispatch('POST','/api/login',{'username':'admin','password':'admin123'})['token']
+        self.store.dispatch('POST','/api/admin/settings',{'car_capacity':20,'motor_capacity':0,'car_rate':7000,'motor_rate':2000},admin)
         self.store.add_officer('operator_uji','Testing123!')
         self.server=create_server(self.store,port=0,directory=Path(self.tmp.name))
         self.thread=threading.Thread(target=self.server.serve_forever,daemon=True);self.thread.start()

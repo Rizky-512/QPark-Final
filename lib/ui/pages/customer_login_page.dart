@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../domain/errors.dart';
 import '../../logic/remote_service.dart';
 import '../common.dart';
+import '../remote_common.dart';
 import 'login_page.dart';
 
 class CustomerLoginPage extends StatefulWidget {
@@ -164,69 +165,43 @@ class _CustomerLoginPageState extends State<CustomerLoginPage> {
   );
   @override
   Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('QPark | Ketersediaan parkir')),
     body: SafeArea(
-      child: LayoutBuilder(
-        builder: (context, bounds) => SingleChildScrollView(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Center(
           child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: bounds.maxHeight),
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1000),
-                  child: Row(
-                    children: [
-                      if (bounds.maxWidth >= 850)
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.only(right: 70),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Icon(
-                                  Icons.local_parking_rounded,
-                                  size: 76,
-                                  color: AppColors.primary,
-                                ),
-                                const SizedBox(height: 24),
-                                Text(
-                                  'Parkir lebih mudah.\nMulai dari sini.',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .displaySmall
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.w800,
-                                        color: AppColors.primary,
-                                      ),
-                                ),
-                                const SizedBox(height: 20),
-                                const Text(
-                                  'Informasi tempat kosong, tiket kendaraan, dan pembayaran dalam satu aplikasi.',
-                                  style: TextStyle(
-                                    fontSize: 17,
-                                    height: 1.7,
-                                    color: AppColors.muted,
-                                  ),
-                                ),
-                                const SizedBox(height: 32),
-                                const StatusPill('Mobil & motor · QR / manual'),
-                              ],
-                            ),
-                          ),
-                        ),
-                      Expanded(
-                        child: Align(
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 420),
-                            child: form(),
-                          ),
-                        ),
-                      ),
-                    ],
+            constraints: const BoxConstraints(maxWidth: 1000),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Cek slot, tanpa perlu login',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Lihat sisa tempat mobil dan motor sebelum menuju area parkir.',
+                ),
+                const SizedBox(height: 20),
+                CapacityCard(widget.service),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: widget.service.syncing
+                        ? null
+                        : widget.service.sync,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Perbarui slot'),
                   ),
                 ),
-              ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Login opsional untuk menyimpan kendaraan dan mengakses tiket pribadi.',
+                ),
+                const SizedBox(height: 16),
+                form(),
+              ],
             ),
           ),
         ),

@@ -39,74 +39,91 @@ class CapacityCard extends StatelessWidget {
   final RemoteService service;
   @override
   Widget build(BuildContext context) {
-    final c = service.capacity;
+    final data = service.capacity;
+    final categories = data?['categories'] as Map?;
     return SurfaceCard(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.directions_car_rounded,
-                color: AppColors.primary,
-                size: 32,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Parkir mobil & motor',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-              ),
-              StatusPill(
-                c == null
-                    ? 'Belum tersedia'
-                    : !service.online
-                    ? 'Data terakhir'
-                    : c['full'] == true
-                    ? 'Penuh'
-                    : 'Tersedia',
-                problem: c?['full'] == true,
-                pending: c == null || !service.online,
-              ),
-            ],
+          Text(
+            'Ketersediaan parkir',
+            style: Theme.of(context).textTheme.titleLarge,
           ),
-          const SizedBox(height: 20),
-          Wrap(
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 12,
-            children: [
-              Text(
-                c == null ? '—' : '${c['available']}',
-                style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.primary,
-                ),
-              ),
-              const Text(
-                'tempat kosong',
-                style: TextStyle(color: AppColors.muted),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (c != null) ...[
-            LinearProgressIndicator(
-              value: (c['occupied'] as num) / (c['total'] as num),
-              color: c['full'] == true ? AppColors.danger : AppColors.accent,
-              backgroundColor: AppColors.successBackground,
-              borderRadius: BorderRadius.circular(8),
-              minHeight: 7,
+          const SizedBox(height: 16),
+          for (final kind in ['MOBIL', 'MOTOR']) ...[
+            Builder(
+              builder: (context) {
+                final c = categories?[kind] as Map?;
+                final total = (c?['total'] as num?)?.toInt() ?? 0;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          kind == 'MOBIL'
+                              ? Icons.directions_car
+                              : Icons.two_wheeler,
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            kind == 'MOBIL' ? 'Parkir Mobil' : 'Parkir Motor',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                        ),
+                        StatusPill(
+                          c == null
+                              ? 'Belum tersedia'
+                              : !service.online
+                              ? 'Data terakhir'
+                              : c['full'] == true
+                              ? 'Penuh'
+                              : 'Tersedia',
+                          pending: c == null || !service.online,
+                          problem: c?['full'] == true,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      c == null
+                          ? 'Sisa slot belum tersedia'
+                          : "${c['available']} slot tersedia",
+                      key: ValueKey('capacity-$kind'),
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(color: AppColors.primary),
+                    ),
+                    if (c != null) ...[
+                      const SizedBox(height: 8),
+                      LinearProgressIndicator(
+                        value: total == 0
+                            ? 1
+                            : ((c['occupied'] as num) / total).clamp(0.0, 1.0),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        "${c['occupied']} terisi / $total kapasitas",
+                        style: const TextStyle(color: AppColors.muted),
+                      ),
+                    ],
+                  ],
+                );
+              },
             ),
-            const SizedBox(height: 12),
-            Text('${c['occupied']} terisi · ${c['total']} kapasitas'),
-            const SizedBox(height: 8),
+            const SizedBox(height: 18),
+          ],
+          if (data != null)
             Text(
-              'Pembaruan: ${wib(c['server_time'])}',
+              "Pembaruan: ${wib(data['server_time'])}",
               style: const TextStyle(color: AppColors.muted, fontSize: 12),
             ),
-          ],
-          const SizedBox(height: 8),
+          if (!service.online)
+            const Text(
+              'Koneksi terputus. Data belum diperbarui.',
+              style: TextStyle(color: AppColors.danger),
+            ),
           const Text(
             'Informasi ketersediaan, bukan reservasi.',
             style: TextStyle(color: AppColors.muted),

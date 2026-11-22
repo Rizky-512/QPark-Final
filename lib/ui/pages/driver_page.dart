@@ -28,6 +28,7 @@ class _DriverPageState extends State<DriverPage> {
   Future<void> edit([String? old]) async {
     final controller = TextEditingController(text: old);
     String? error;
+    String? vehicleType = widget.args.service.vehicleTypes[old];
     bool saving = false;
     await showDialog<void>(
       context: context,
@@ -35,21 +36,41 @@ class _DriverPageState extends State<DriverPage> {
         builder: (context, setDialog) => AlertDialog(
           scrollable: true,
           title: Text(old == null ? 'Tambah kendaraan' : 'Edit nopol'),
-          content: TextField(
-            key: const Key('vehicle-plate'),
-            controller: controller,
-            autofocus: true,
-            textCapitalization: TextCapitalization.characters,
-            decoration: InputDecoration(
-              labelText: 'Nomor polisi',
-              hintText: 'B 1234 AB',
-              errorText: error,
-              errorMaxLines: 3,
-              helperMaxLines: 3,
-              helperText: widget.args.service.customerIdentity == null
-                  ? 'Tersimpan di perangkat ini.'
-                  : 'Tersimpan pada akun Anda.',
-            ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                key: const Key('vehicle-plate'),
+                controller: controller,
+                autofocus: true,
+                textCapitalization: TextCapitalization.characters,
+                decoration: InputDecoration(
+                  labelText: 'Nomor polisi',
+                  hintText: 'B 1234 AB',
+                  errorText: error,
+                  errorMaxLines: 3,
+                  helperMaxLines: 3,
+                  helperText: widget.args.service.customerIdentity == null
+                      ? 'Tersimpan di perangkat ini.'
+                      : 'Tersimpan pada akun Anda.',
+                ),
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                key: const Key('vehicle-category'),
+                initialValue: vehicleType,
+                decoration: const InputDecoration(
+                  labelText: 'Kategori kendaraan',
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'MOBIL', child: Text('Mobil')),
+                  DropdownMenuItem(value: 'MOTOR', child: Text('Motor')),
+                ],
+                onChanged: saving
+                    ? null
+                    : (v) => setDialog(() => vehicleType = v),
+              ),
+            ],
           ),
           actions: [
             TextButton(
@@ -57,7 +78,7 @@ class _DriverPageState extends State<DriverPage> {
               child: const Text('Batal'),
             ),
             FilledButton(
-              onPressed: saving
+              onPressed: saving || vehicleType == null
                   ? null
                   : () async {
                       setDialog(() {
@@ -68,6 +89,7 @@ class _DriverPageState extends State<DriverPage> {
                         await widget.args.service.savePlate(
                           controller.text,
                           replacing: old,
+                          vehicleType: vehicleType,
                         );
                         if (dialogContext.mounted) Navigator.pop(dialogContext);
                       } catch (e) {

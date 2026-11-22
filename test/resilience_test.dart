@@ -47,7 +47,9 @@ void main() {
               : null,
         };
       };
-      final service = RemoteService(repository, prefs)..selected = 'A1';
+      final service = RemoteService(repository, prefs)
+        ..customerDemo = true
+        ..selected = 'A1';
       addTearDown(service.dispose);
       final a = service.sync(), b = service.sync();
       await Future<void>.delayed(Duration.zero);

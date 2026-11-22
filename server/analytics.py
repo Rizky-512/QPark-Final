@@ -105,7 +105,7 @@ def parking_analytics(store, db, query, now):
             for row in (total,daily[str(dt.date())],hourly[dt.hour],weekdays[dt.weekday()],heatmap[dt.weekday()*24+dt.hour]):
                 row['seconds']+=seconds
                 row['vehicle_seconds']+=occupied*seconds
-                row['ratio_seconds']+=occupied/capacity*seconds
+                row['ratio_seconds']+=(occupied/capacity*seconds) if capacity else 0
     def finish(row):
         seconds=row.pop('seconds')
         vs=row.pop('vehicle_seconds')

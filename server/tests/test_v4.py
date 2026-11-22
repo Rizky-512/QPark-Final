@@ -72,13 +72,13 @@ class RevisionTest(unittest.TestCase):
         self.assertEqual(self.get('officer/history?method=MANUAL',self.officer)['total'],0)
     def test_penalty_uses_vehicle_snapshot_after_settings_change(self):
         motor=self.enter();car=self.enter('B456','MOBIL')
-        self.post('admin/settings',self.admin,capacity=20,car_rate=8000,motor_rate=3000)
+        self.post('admin/settings',self.admin,car_capacity=10,motor_capacity=10,car_rate=8000,motor_rate=3000)
         self.assertEqual(self.quote(car)['amount'],7000)
         i=self.quote(motor);p=self.post('payment',invoice_id=i['id'],outcome='SUCCESS',operation_key=uid('op'))['session']
         self.now=p['window']['deadline']+1;i=self.quote(motor);self.assertEqual(i['amount'],2000)
         r=self.post('officer/manual-pay',self.officer,**self.manual_data(motor,i))['session'];self.assertEqual(r['amount_paid'],4000)
         newer=self.enter('B789');self.assertEqual(newer['hourly_rate'],3000)
-        with self.assertRaises(RuleError):self.post('admin/settings',self.admin,capacity=1,car_rate=8000,motor_rate=3000)
+        with self.assertRaises(RuleError):self.post('admin/settings',self.admin,car_capacity=0,motor_capacity=0,car_rate=8000,motor_rate=3000)
     def test_history_scopes_filters_and_pagination(self):
         a=self.enter();i=self.quote(a);r=self.post('officer/manual-pay',self.officer,**self.manual_data(a,i))['session'];self.complete(r)
         self.enter('OTHER','MOBIL')
