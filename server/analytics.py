@@ -9,12 +9,18 @@ from .rules import RuleError
 WIB = timezone(timedelta(hours=7))
 DAYS = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu']
 
-def forecast_observations(store, db, now, coverage):
+def forecast_observations(store, db, now, coverage, location_id='LOC-DEFAULT'):
     """Completed 30-minute pairs under the current capacity regime only."""
-    capacity = store.settings(db)['capacity']
-    changed = db.execute("SELECT max(server_time) FROM audit WHERE event_type='SETTINGS_CHANGED'").fetchone()[0]
+    capacity = store.settings(db, location_id)['capacity']
+    changed = db.execute(
+        "SELECT max(server_time) FROM audit WHERE event_type='SETTINGS_CHANGED' AND (location_id=? OR entity_id IN ('parking', ?))",
+        (location_id, location_id),
+    ).fetchone()[0]
     start = max(coverage, now - 56 * 86400, changed or coverage)
-    rows = db.execute('SELECT entered_at,exited_at FROM sessions WHERE entered_at<=? AND (exited_at IS NULL OR exited_at>?)', (now, start)).fetchall()
+    rows = db.execute(
+        'SELECT entered_at,exited_at FROM sessions WHERE location_id=? AND entered_at<=? AND (exited_at IS NULL OR exited_at>?)',
+        (location_id, now, start),
+    ).fetchall()
     entries = sorted(r['entered_at'] for r in rows)
     exits = sorted(r['exited_at'] for r in rows if r['exited_at'] is not None)
     def occupied(t):
@@ -29,7 +35,7 @@ def forecast_observations(store, db, now, coverage):
     return dict(version=2, capacity=capacity, current=occupied(now), target_time=now + 1800,
                 live=[occupied(now),flow(entries,now),flow(exits,now),now], samples=samples)
 
-def parking_analytics(store, db, query, now):
+def parking_analytics(store, db, query, now, location_id='LOC-DEFAULT'):
     today = datetime.fromtimestamp(now, WIB).date()
     try:
         first = datetime.strptime(query.get('from', [str(today-timedelta(days=6))])[0], '%Y-%m-%d').date()
@@ -41,7 +47,7 @@ def parking_analytics(store, db, query, now):
     start = datetime.combine(first, datetime.min.time(), WIB).timestamp()
     end = min(datetime.combine(last+timedelta(days=1), datetime.min.time(), WIB).timestamp(), now)
     coverage = min(now, db.execute('SELECT min(applied_at) FROM migrations').fetchone()[0] or now,
-                   db.execute('SELECT min(entered_at) FROM sessions').fetchone()[0] or now)
+                   db.execute('SELECT min(entered_at) FROM sessions WHERE location_id=?', (location_id,)).fetchone()[0] or now)
     observed_start = max(start, coverage)
     def bucket(**labels):
         return dict(labels, arrivals=0, seconds=0.0, vehicle_seconds=0.0, ratio_seconds=0.0)
@@ -51,7 +57,7 @@ def parking_analytics(store, db, query, now):
     heatmap = [bucket(day=d, hour=h) for d in range(7) for h in range(24)]
     vehicles = {'MOBIL':0, 'MOTOR':0}
     durations = []
-    entrants = db.execute('SELECT entered_at,exited_at,state,vehicle_type FROM sessions WHERE entered_at>=? AND entered_at<?', (start,end)).fetchall()
+    entrants = db.execute('SELECT entered_at,exited_at,state,vehicle_type FROM sessions WHERE location_id=? AND entered_at>=? AND entered_at<?', (location_id, start, end)).fetchall()
     for s in entrants:
         dt = datetime.fromtimestamp(s['entered_at'], WIB)
         for b in (daily[str(dt.date())],hourly[dt.hour],weekdays[dt.weekday()]):
@@ -61,20 +67,28 @@ def parking_analytics(store, db, query, now):
         if s['state']=='COMPLETED' and s['exited_at'] is not None and s['exited_at']>=s['entered_at']:
             durations.append((s['exited_at']-s['entered_at'])/60)
     payments = {k:{'count':0,'amount':0} for k in ('QR_SIMULASI','MANUAL')}
-    for r in db.execute("SELECT payment_method,count(*) n,sum(amount) amount FROM invoices WHERE state='PAID' AND paid_at>=? AND paid_at<? GROUP BY payment_method",(start,end)):
-        if r['payment_method'] in payments:
+    for r in db.execute(
+        '''SELECT i.payment_method,count(*) n,sum(i.amount) amount
+           FROM invoices i JOIN sessions s ON s.id=i.session_id
+           WHERE s.location_id=? AND i.state='PAID' AND i.paid_at>=? AND i.paid_at<? GROUP BY i.payment_method''',
+        (location_id, start, end),
+    ):
+        if r['payment_method'] in ('QR_SIMULASI', 'MANUAL', 'EWALLET'):
             payments[r['payment_method']]={'count':r['n'],'amount':r['amount']}
     events = defaultdict(int)
     if observed_start < end:
-        for s in db.execute('SELECT entered_at,exited_at FROM sessions WHERE entered_at<? AND (exited_at IS NULL OR exited_at>?)',(end,observed_start)):
+        for s in db.execute('SELECT entered_at,exited_at FROM sessions WHERE location_id=? AND entered_at<? AND (exited_at IS NULL OR exited_at>?)', (location_id, end, observed_start)):
             a, b = max(observed_start,s['entered_at']), min(end,s['exited_at'] if s['exited_at'] is not None else end)
             if a < b:
                 events[a] += 1
                 events[b] -= 1
     capacities = {}
-    cap_rows = db.execute("SELECT server_time,result FROM audit WHERE event_type='SETTINGS_CHANGED' ORDER BY server_time,rowid").fetchall()
+    cap_rows = db.execute(
+        "SELECT server_time,result FROM audit WHERE event_type='SETTINGS_CHANGED' AND (location_id=? OR entity_id IN ('parking', ?)) ORDER BY server_time,rowid",
+        (location_id, location_id),
+    ).fetchall()
     # v4 starts with 20 spaces; subsequent capacity changes are audited.
-    capacity = 20 if cap_rows else store.settings(db)['capacity']
+    capacity = 20 if cap_rows else store.settings(db, location_id)['capacity']
     for r in cap_rows:
         try:
             c = int(json.loads(r['result'])['capacity'])
@@ -121,7 +135,7 @@ def parking_analytics(store, db, query, now):
     busiest=max(candidates,key=lambda b:b['occupancy_pct']) if candidates else None
     if busiest:
         busiest=dict(busiest,label=DAYS[busiest['day']])
-    return dict(forecast=forecast_observations(store, db, now, coverage), from_date=str(first),to_date=str(last),timezone='Asia/Jakarta',coverage_start=coverage,coverage_end=end,
+    return dict(forecast=forecast_observations(store, db, now, coverage, location_id), location_id=location_id, from_date=str(first),to_date=str(last),timezone='Asia/Jakarta',coverage_start=coverage,coverage_end=end,
                 arrivals=len(entrants),completed_count=len(durations),excluded_active_count=len(entrants)-len(durations),
                 mean_minutes=round(mean(durations),2) if durations else None,median_minutes=round(median(durations),2) if durations else None,
                 vehicles=vehicles,payments=payments,daily=daily,hourly=hourly,weekdays=weekdays,heatmap=heatmap,

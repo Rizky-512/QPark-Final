@@ -2,10 +2,13 @@
 from .rules import RuleError, plate
 
 
-def capacity_view(db, settings):
+def capacity_view(db, settings, location_id='LOC-DEFAULT'):
     categories = {}
     for kind, key in [('MOBIL', 'car_capacity'), ('MOTOR', 'motor_capacity')]:
-        used = db.execute("SELECT count(*) FROM sessions WHERE state!='COMPLETED' AND vehicle_type=?", (kind,)).fetchone()[0]
+        used = db.execute(
+            "SELECT count(*) FROM sessions WHERE state!='COMPLETED' AND vehicle_type=? AND location_id=?",
+            (kind, location_id),
+        ).fetchone()[0]
         total = settings[key]
         categories[kind] = dict(total=total, occupied=used, available=max(0, total-used), full=used >= total)
     return dict(total=sum(x['total'] for x in categories.values()),

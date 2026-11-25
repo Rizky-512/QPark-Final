@@ -212,6 +212,10 @@ class _RemoteHistoryPageState extends State<RemoteHistoryPage> {
                           child: Text('QR simulasi'),
                         ),
                         DropdownMenuItem(
+                          value: 'EWALLET',
+                          child: Text('Dompet QPark'),
+                        ),
+                        DropdownMenuItem(
                           value: 'MANUAL',
                           child: Text('Manual'),
                         ),

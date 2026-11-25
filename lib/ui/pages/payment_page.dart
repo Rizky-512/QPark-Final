@@ -299,7 +299,52 @@ class _PaymentPageState extends State<PaymentPage> {
                       spacing: 12,
                       runSpacing: 12,
                       children: [
-                        FilledButton(
+                        FilledButton.icon(
+                          key: const Key('payment-ewallet'),
+                          onPressed: busy || !service.online
+                              ? null
+                              : () async {
+                                  if (service.walletBalance <
+                                      (current['amount'] as num).toInt()) {
+                                    showMessage(
+                                      context,
+                                      'Saldo Dompet QPark (${money(service.walletBalance)}) kurang. Top up di tab Dompet.',
+                                      error: true,
+                                    );
+                                    return;
+                                  }
+                                  setState(() => busy = true);
+                                  try {
+                                    final r = await service.payWithWallet(
+                                      invoiceId: current['id'] as String,
+                                    );
+                                    if (!context.mounted) return;
+                                    if (r['outcome'] == 'SUCCESS') {
+                                      setState(
+                                        () => confirmedSessionId =
+                                            s['id'] as String?,
+                                      );
+                                      showMessage(
+                                        context,
+                                        'Berhasil dibayar pakai Dompet QPark. Waktu keluar 15 menit dimulai.',
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (context.mounted) {
+                                      remoteError(context, e);
+                                    }
+                                  } finally {
+                                    if (mounted) setState(() => busy = false);
+                                  }
+                                },
+                          icon: const Icon(
+                            Icons.account_balance_wallet_outlined,
+                          ),
+                          label: Text(
+                            'Bayar pakai Dompet (${money(service.walletBalance)})',
+                          ),
+                        ),
+                        FilledButton.tonal(
                           key: const Key('payment-success'),
                           onPressed:
                               busy || !service.online || !AppConfig.simulation

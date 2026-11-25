@@ -220,7 +220,7 @@ class _CustomerTicketActionState extends State<CustomerTicketAction> {
         case CustomerAction.payment || CustomerAction.exitQr:
           args.navigate(1);
         case CustomerAction.history:
-          args.navigate(2);
+          args.navigate(1);
         case CustomerAction.refresh:
           await args.service.sync();
         case CustomerAction.reconcile:

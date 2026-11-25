@@ -6,16 +6,19 @@ import 'common.dart';
 import 'widgets/page_motion.dart';
 import 'widgets/customer_ticket_details.dart';
 import 'remote_common.dart';
-import 'pages/login_page.dart';
+import 'pages/account_page.dart';
+import 'pages/activity_page.dart';
+import 'pages/admin_page.dart';
+import 'pages/analytics_page.dart';
+import 'pages/customer_login_page.dart';
 import 'pages/dashboard_page.dart';
 import 'pages/driver_page.dart';
 import 'pages/entry_page.dart';
-import 'pages/payment_page.dart';
 import 'pages/exit_page.dart';
+import 'pages/login_page.dart';
+import 'pages/qr_pay_page.dart';
 import 'pages/remote_history_page.dart';
-import 'pages/admin_page.dart';
-import 'pages/customer_login_page.dart';
-import 'pages/analytics_page.dart';
+import 'pages/wallet_page.dart';
 
 class QParkApp extends StatefulWidget {
   const QParkApp({super.key, required this.initialize});
@@ -129,6 +132,7 @@ class _ShellState extends State<_Shell> {
   int index = 0;
   String? checkoutSessionId;
   int checkoutRequest = 0;
+
   void openCheckout(String sessionId) {
     FocusManager.instance.primaryFocus?.unfocus();
     setState(() {
@@ -136,6 +140,20 @@ class _ShellState extends State<_Shell> {
       checkoutRequest++;
       index = 2;
     });
+  }
+
+  void openQrPay() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => QrPayPage(
+          service: widget.service,
+          onOpenWallet: () => navigate(2),
+          onOpenActivity: () => navigate(1),
+        ),
+      ),
+    );
   }
 
   List<(String, IconData)> get destinations => widget.service.officer
@@ -148,10 +166,12 @@ class _ShellState extends State<_Shell> {
           if (widget.service.admin) ('Analisis', Icons.bar_chart_rounded),
         ]
       : const [
-          ('Beranda', Icons.space_dashboard_outlined),
-          ('Tiket', Icons.receipt_long_outlined),
-          ('Riwayat', Icons.history),
+          ('Home', Icons.home_rounded),
+          ('Aktivitas', Icons.receipt_long_rounded),
+          ('Dompet', Icons.account_balance_wallet_rounded),
+          ('Akun', Icons.person_rounded),
         ];
+
   void navigate(int value) {
     FocusManager.instance.primaryFocus?.unfocus();
     if (index != value) setState(() => index = value);
@@ -162,7 +182,7 @@ class _ShellState extends State<_Shell> {
       context,
       MaterialPageRoute(
         builder: (context) => Scaffold(
-          appBar: AppBar(title: const Text('Akses admin & petugas')),
+          appBar: AppBar(title: const Text('Akses pengelola & petugas')),
           body: LoginPage(
             service: widget.service,
             onLogin: () {
@@ -186,114 +206,195 @@ class _ShellState extends State<_Shell> {
     }
   }
 
-  Widget sidebar() => Container(
-    width: 225,
-    decoration: const BoxDecoration(
-      color: AppColors.surface,
-      border: Border(right: BorderSide(color: AppColors.border)),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(24),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.local_parking_rounded,
-                size: 34,
-                color: AppColors.primary,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'QPark',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(24, 4, 24, 14),
-          child: Text(
-            widget.service.officer ? 'KELOLA PARKIR' : 'PARKIR SAYA',
-            style: const TextStyle(
-              letterSpacing: 1.5,
-              fontSize: 11,
-              color: AppColors.muted,
-            ),
-          ),
-        ),
-        Expanded(
-          child: SingleChildScrollView(
+  Widget _customerBottomBar() {
+    Widget tabItem(int tabIndex, IconData icon, String label) {
+      final selected = index == tabIndex;
+      return Expanded(
+        child: InkWell(
+          key: Key('nav-$tabIndex'),
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => navigate(tabIndex),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                ...destinations.indexed.map(
-                  (d) => Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: widget.service.admin ? 2 : 4,
-                    ),
-                    child: Material(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(12),
-                      child: ListTile(
-                        key: Key('nav-${d.$1}'),
-                        dense: widget.service.admin,
-                        selected: index == d.$1,
-                        selectedColor: AppColors.primary,
-                        selectedTileColor: AppColors.successBackground,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        leading: Icon(d.$2.$2),
-                        title: Text(d.$2.$1),
-                        onTap: () => navigate(d.$1),
-                      ),
-                    ),
+                Icon(
+                  icon,
+                  size: 22,
+                  color: selected ? AppColors.primary : AppColors.muted,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
+                    color: selected ? AppColors.primary : AppColors.muted,
                   ),
                 ),
               ],
             ),
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              StatusPill(
-                widget.service.online
-                    ? 'Terhubung ke server'
-                    : 'Offline / data lama',
-                problem: !widget.service.online,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                widget.service.username ??
-                    widget.service.customerIdentity?.displayName ??
-                    'Customer demo',
-                style: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                '1 area · mobil & motor',
-                style: TextStyle(color: AppColors.muted),
-              ),
-            ],
+      );
+    }
+
+    return BottomAppBar(
+      shape: const CircularNotchedRectangle(),
+      notchMargin: 8,
+      color: AppColors.surface,
+      elevation: 8,
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      height: 64,
+      child: Row(
+        children: [
+          tabItem(0, Icons.home_rounded, 'Home'),
+          tabItem(1, Icons.receipt_long_rounded, 'Aktivitas'),
+          const SizedBox(width: 64),
+          tabItem(2, Icons.account_balance_wallet_rounded, 'Dompet'),
+          tabItem(3, Icons.person_rounded, 'Akun'),
+        ],
+      ),
+    );
+  }
+
+  Widget sidebar() {
+    final service = widget.service;
+    return Container(
+      width: 235,
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        border: Border(right: BorderSide(color: AppColors.border)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.local_parking_rounded,
+                  size: 34,
+                  color: AppColors.primary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'QPark',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
-    ),
-  );
+          if (!service.officer)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: FilledButton.icon(
+                key: const Key('fab-scan-qr'),
+                onPressed: openQrPay,
+                icon: const Icon(Icons.qr_code_scanner_rounded),
+                label: const Text('Scan QR Bayar'),
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 4, 24, 14),
+            child: Text(
+              service.officer
+                  ? 'KELOLA PARKIR · ${service.roleLabel.toUpperCase()}'
+                  : 'PARKIR SAYA',
+              style: const TextStyle(
+                letterSpacing: 1.3,
+                fontSize: 11,
+                color: AppColors.muted,
+              ),
+            ),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  ...destinations.indexed.map(
+                    (d) => Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: service.admin ? 2 : 4,
+                      ),
+                      child: Material(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(12),
+                        child: ListTile(
+                          key: Key('nav-${d.$1}'),
+                          dense: service.admin,
+                          selected: index == d.$1,
+                          selectedColor: AppColors.primary,
+                          selectedTileColor: AppColors.successBackground,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          leading: Icon(d.$2.$2),
+                          title: Text(d.$2.$1),
+                          onTap: () => navigate(d.$1),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                StatusPill(
+                  service.online
+                      ? 'Terhubung ke server'
+                      : 'Offline / data lama',
+                  problem: !service.online,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  service.username ??
+                      service.customerIdentity?.displayName ??
+                      'Customer demo',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  service.officer
+                      ? (service.staffLocationName ??
+                            (service.superadmin
+                                ? 'Semua lokasi'
+                                : 'Area parkir'))
+                      : 'Dompet: ${money(service.walletBalance)}',
+                  style: const TextStyle(color: AppColors.muted, fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final service = widget.service,
-        args = RemoteArgs(widget.service, navigate, openCheckout: openCheckout);
+    final service = widget.service;
+    final args = RemoteArgs(
+      widget.service,
+      navigate,
+      openCheckout: openCheckout,
+      openQrPay: openQrPay,
+    );
     final pages = service.officer
         ? <Widget>[
             DashboardPage(args: args),
@@ -310,12 +411,16 @@ class _ShellState extends State<_Shell> {
           ]
         : <Widget>[
             DriverPage(args: args, active: index == 0),
-            PaymentPage(args: args, active: index == 1),
-            RemoteHistoryPage(args: args, active: index == 2),
+            ActivityPage(args: args, active: index == 1),
+            WalletPage(args: args, active: index == 2),
+            AccountPage(args: args, onStaffLogin: login, onLogout: logout),
           ];
+
     return LayoutBuilder(
       builder: (context, bounds) {
         final wide = bounds.maxWidth >= 1000;
+        final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+        final showCustomerFab = !service.officer && !wide && !keyboardOpen;
         return Scaffold(
           appBar: AppBar(
             leading: !wide && index >= 4
@@ -333,10 +438,37 @@ class _ShellState extends State<_Shell> {
               overflow: TextOverflow.ellipsis,
             ),
             actions: [
+              if (service.superadmin && service.locations.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      key: const Key('superadmin-location-switch'),
+                      value:
+                          service.locations.any(
+                            (l) => l['id'] == service.selectedLocationId,
+                          )
+                          ? service.selectedLocationId
+                          : service.locations.first['id'] as String,
+                      items: service.locations
+                          .map(
+                            (l) => DropdownMenuItem(
+                              value: l['id'] as String,
+                              child: Text(
+                                l['name'] as String,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) => service.selectLocation(v),
+                    ),
+                  ),
+                ),
               if (service.admin && !wide)
                 PopupMenuButton<int>(
                   key: const Key('admin-menu'),
-                  tooltip: 'Menu admin',
+                  tooltip: 'Menu pengelola',
                   icon: const Icon(Icons.admin_panel_settings_outlined),
                   onSelected: navigate,
                   itemBuilder: (_) => [
@@ -362,12 +494,12 @@ class _ShellState extends State<_Shell> {
                   key: const Key('officer-login'),
                   onPressed: login,
                   icon: const Icon(Icons.badge_outlined),
-                  label: const Text('Login admin / petugas'),
+                  label: const Text('Login pengelola / petugas'),
                 ),
               if (!service.officer && !wide)
                 IconButton(
                   key: const Key('officer-login'),
-                  tooltip: 'Login admin / petugas',
+                  tooltip: 'Login pengelola / petugas',
                   onPressed: login,
                   icon: const Icon(Icons.badge_outlined),
                 ),
@@ -382,7 +514,7 @@ class _ShellState extends State<_Shell> {
                       builder: (context) => AlertDialog(
                         title: const Text('Status koneksi sesi ini'),
                         content: Text(
-                          'Permintaan: ${m.requests}\nGagal: ${m.failures}\nTimeout: ${m.timeouts}\np95 (100 terakhir): ${m.p95Milliseconds} ms\nGagal sinkron berturut-turut: ${service.consecutiveFailures}\nInterval sinkron: ${service.pollDelay.inSeconds} detik\nKode error terakhir: ${m.lastErrorCode ?? "?"}',
+                          'Peran: ${service.roleLabel}\nLokasi: ${service.staffLocationName ?? 'Semua lokasi'}\nPermintaan: ${m.requests}\nGagal: ${m.failures}\nTimeout: ${m.timeouts}\np95 (100 terakhir): ${m.p95Milliseconds} ms\nGagal sinkron berturut-turut: ${service.consecutiveFailures}\nInterval sinkron: ${service.pollDelay.inSeconds} detik\nKode error terakhir: ${m.lastErrorCode ?? "?"}',
                         ),
                         actions: [
                           TextButton(
@@ -476,7 +608,7 @@ class _ShellState extends State<_Shell> {
                                     },
                               child: Text(
                                 service.retrying
-                                    ? 'Memeriksa?'
+                                    ? 'Memeriksa…'
                                     : 'Periksa & coba ulang',
                               ),
                             ),
@@ -515,7 +647,7 @@ class _ShellState extends State<_Shell> {
                     if (!service.officer &&
                         index == 0 &&
                         service.selected != null &&
-                        MediaQuery.viewInsetsOf(context).bottom == 0)
+                        !keyboardOpen)
                       Container(
                         key: const Key('customer-action-dock'),
                         width: double.infinity,
@@ -545,15 +677,44 @@ class _ShellState extends State<_Shell> {
               ),
             ],
           ),
-          bottomNavigationBar:
-              wide || index >= 4 || MediaQuery.viewInsetsOf(context).bottom > 0
+          floatingActionButtonLocation:
+              FloatingActionButtonLocation.centerDocked,
+          floatingActionButton: showCustomerFab
+              ? FloatingActionButton(
+                  key: const Key('fab-scan-qr'),
+                  tooltip: 'Scan QR Bayar',
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 4,
+                  shape: const CircleBorder(),
+                  onPressed: openQrPay,
+                  child: const Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.qr_code_scanner_rounded, size: 24),
+                      Text(
+                        'Pay',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : null,
+          bottomNavigationBar: wide || keyboardOpen
+              ? null
+              : !service.officer
+              ? _customerBottomBar()
+              : index >= 4
               ? null
               : NavigationBar(
                   labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
                   selectedIndex: index > 3 ? 0 : index,
                   onDestinationSelected: navigate,
                   destinations: destinations
-                      .take(service.officer ? 4 : 3)
+                      .take(4)
                       .indexed
                       .map(
                         (d) => NavigationDestination(

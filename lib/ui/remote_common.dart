@@ -4,10 +4,16 @@ import '../logic/remote_service.dart';
 import 'common.dart';
 
 class RemoteArgs {
-  const RemoteArgs(this.service, this.navigate, {this.openCheckout});
+  const RemoteArgs(
+    this.service,
+    this.navigate, {
+    this.openCheckout,
+    this.openQrPay,
+  });
   final RemoteService service;
   final void Function(int) navigate;
   final void Function(String sessionId)? openCheckout;
+  final VoidCallback? openQrPay;
 }
 
 String wib(dynamic seconds) {
@@ -41,12 +47,14 @@ class CapacityCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final data = service.capacity;
     final categories = data?['categories'] as Map?;
+    final loc = data?['location'] as Map?;
+    final locName = loc?['name'] as String?;
     return SurfaceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Ketersediaan parkir',
+            locName == null ? 'Ketersediaan parkir' : 'Ketersediaan · $locName',
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 16),
@@ -166,6 +174,27 @@ class SessionSummary extends StatelessWidget {
         'Tiket: ${session['id']}',
         style: const TextStyle(color: AppColors.muted, fontSize: 12),
       ),
+      if (session['location_name'] is String &&
+          (session['location_name'] as String).isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.location_on_outlined,
+                size: 16,
+                color: AppColors.primary,
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  session['location_name'] as String,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+        ),
       const SizedBox(height: 8),
       Text(
         '${session['vehicle_type'] == 'MOTOR' ? 'Motor' : 'Mobil'} · ${money((session['hourly_rate'] as num? ?? 7000).toInt())}/jam',

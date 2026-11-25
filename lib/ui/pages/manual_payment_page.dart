@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../../data/remote_repository.dart';
 import '../common.dart';
 import '../remote_common.dart';
@@ -272,7 +274,49 @@ class _ManualPaymentPageState extends State<ManualPaymentPage> {
                       'Tidak ada pembayaran baru. Tagihan sudah lunas.',
                     ),
                   if (due > 0) ...[
-                    const SizedBox(height: 16),
+                    if (invoice?['id'] != null) ...[
+                      const SizedBox(height: 12),
+                      ExpansionTile(
+                        tilePadding: EdgeInsets.zero,
+                        leading: const Icon(
+                          Icons.qr_code_2_rounded,
+                          color: AppColors.primary,
+                        ),
+                        title: const Text(
+                          'QR Tagihan (untuk Scan Dompet QPark)',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        children: [
+                          Container(
+                            color: Colors.white,
+                            padding: const EdgeInsets.all(10),
+                            child: QrImageView(
+                              data: 'QPP.SIMULASI.${invoice!['id']}',
+                              size: 160,
+                              backgroundColor: Colors.white,
+                            ),
+                          ),
+                          TextButton.icon(
+                            onPressed: () async {
+                              await Clipboard.setData(
+                                ClipboardData(
+                                  text: 'QPP.SIMULASI.${invoice!['id']}',
+                                ),
+                              );
+                              if (context.mounted) {
+                                showMessage(
+                                  context,
+                                  'Kode QR tagihan disalin.',
+                                );
+                              }
+                            },
+                            icon: const Icon(Icons.copy, size: 16),
+                            label: const Text('Salin kode QR tagihan'),
+                          ),
+                        ],
+                      ),
+                    ],
+                    const SizedBox(height: 12),
                     TextField(
                       controller: received,
                       enabled: !busy,

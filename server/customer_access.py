@@ -26,6 +26,10 @@ class CustomerAccessMixin:
         parts = urlsplit(full_path)
         path, query = parts.path, parse_qs(parts.query)
         owner = 'demo:' + digest(key) if re.fullmatch(r'[a-f0-9]{48}', key or '') else None
+        from .locations_wallet import wallet_dispatch
+        loc_wallet = wallet_dispatch(self, db, method, path, query, data, token, now, owner)
+        if loc_wallet is not None:
+            return loc_wallet
         from .vehicle_categories import category_request
         category = category_request(self, db, method, path, query, data, token, now, owner)
         if category is not None:
@@ -41,11 +45,13 @@ class CustomerAccessMixin:
 
         # Staff must physically verify the plate before binding an unowned ticket.
         if path == '/api/officer/link' and method == 'POST':
-            actor = self._officer(db, token, now)
+            officer = self._officer_row(db, token, now)
+            actor = officer['id']
             p = plate(data.get('plate'))
-            session = db.execute("SELECT id FROM sessions WHERE plate=? AND state!='COMPLETED'", (p,)).fetchone()
+            session = db.execute("SELECT id, location_id FROM sessions WHERE plate=? AND state!='COMPLETED'", (p,)).fetchone()
             if not session or data.get('verified') is not True:
                 raise RuleError('Verifikasi kendaraan aktif terlebih dahulu.', 'verification', 400)
+            self._check_session_location(officer, dict(session))
             link = db.execute('SELECT * FROM customer_codes WHERE digest=? AND plate=? AND expires_at>?',
                               (digest(str(data.get('code', '')).strip().upper()), p, now)).fetchone()
             if not link:

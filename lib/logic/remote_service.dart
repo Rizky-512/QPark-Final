@@ -186,10 +186,25 @@ class RemoteService extends ChangeNotifier {
   final ScopedPreferences preferences;
   List<String> plates = [];
   String? selected, token, username, error, customerError;
+  String? staffLocationId, staffLocationName, selectedLocationId;
   String role = 'PENGENDARA';
-  bool get admin => officer && role == 'ADMIN';
+  bool get superadmin => officer && role == 'SUPERADMIN';
+  bool get admin => officer && (role == 'ADMIN' || role == 'SUPERADMIN');
+  String get roleLabel => switch (role) {
+    'SUPERADMIN' => 'Superadmin',
+    'ADMIN' => 'Pengelola',
+    'PETUGAS' => 'Petugas',
+    _ => 'Pengendara',
+  };
+  String? get activeLocationId => officer
+      ? (superadmin ? selectedLocationId : staffLocationId)
+      : selectedLocationId;
   Json? capacity, ticket;
+  List<Json> locations = [];
   List<Json> sessions = [];
+  int walletBalance = 0;
+  List<Json> walletTransactions = [];
+  bool walletLoaded = false;
   final List<Json> _pending = [];
   String get operationOwner => officer
       ? 'staff:$token'
@@ -301,6 +316,8 @@ class RemoteService extends ChangeNotifier {
     final oldOwner = operationOwner;
     token = null;
     username = null;
+    staffLocationId = null;
+    staffLocationName = null;
     role = 'PENGENDARA';
     sessions = [];
     ticket = null;
@@ -310,11 +327,78 @@ class RemoteService extends ChangeNotifier {
         'Sesi petugas berakhir. Masuk kembali untuk melanjutkan pelayanan.';
   }
 
+  void selectLocation(String? locationId) {
+    if (selectedLocationId == locationId) return;
+    _contextEpoch++;
+    selectedLocationId = locationId;
+    emit();
+    unawaited(sync());
+  }
+
+  Future<void> refreshWallet() async {
+    if (officer || !signedIn) return;
+    final owner = operationOwner;
+    final r = await repository.request('GET', '/api/wallet');
+    if (disposed || operationOwner != owner) return;
+    observe(r);
+    walletBalance = (r['balance'] as num?)?.toInt() ?? 0;
+    walletTransactions = ((r['transactions'] as List?) ?? const [])
+        .cast<Json>();
+    walletLoaded = true;
+    emit();
+  }
+
+  Future<Json> topUpWallet(int amount) async {
+    final r = await post('/api/wallet/topup', {
+      'amount': amount,
+    }, idempotent: true);
+    if (!disposed) {
+      walletBalance = (r['balance'] as num?)?.toInt() ?? walletBalance;
+      if (r['transactions'] is List) {
+        walletTransactions = (r['transactions'] as List).cast<Json>();
+      }
+      walletLoaded = true;
+      emit();
+    }
+    return r;
+  }
+
+  Future<Json> inspectPaymentQr(String qr) =>
+      repository.request('POST', '/api/wallet/inspect', body: {'qr': qr});
+
+  Future<Json> payWithWallet({String? qr, String? invoiceId}) async {
+    final r = await post('/api/wallet/pay', {
+      'qr': ?qr,
+      'invoice_id': ?invoiceId,
+    }, idempotent: true);
+    if (!disposed) {
+      if (r['balance'] is num) {
+        walletBalance = (r['balance'] as num).toInt();
+        walletLoaded = true;
+      }
+      if (r['session'] is Json) {
+        final session = r['session'] as Json;
+        final sessionPlate = session['plate'] as String?;
+        if (sessionPlate != null &&
+            (selected == null || selected == sessionPlate)) {
+          ticket = session;
+        }
+      }
+      emit();
+      unawaited(refreshWallet().catchError((_) {}));
+    }
+    return r;
+  }
+
   Future<void> _syncOnce(int epoch) async {
     final currentPlate = selected;
     final currentToken = token;
+    final locParam = activeLocationId;
     try {
-      final c = await repository.request('GET', '/api/capacity');
+      final capPath = locParam == null
+          ? '/api/capacity'
+          : '/api/capacity?location_id=${Uri.encodeComponent(locParam)}';
+      final c = await repository.request('GET', capPath, token: currentToken);
       for (final old in List<String>.from(revoked)) {
         await repository.request('POST', '/api/logout', token: old);
         revoked.remove(old);
@@ -331,11 +415,30 @@ class RemoteService extends ChangeNotifier {
         );
         nextTicket = r['session'] as Json?;
       }
+      int nextBalance = walletBalance;
+      List<Json> nextWalletTxs = walletTransactions;
+      bool nextWalletLoaded = walletLoaded;
+      if (signedIn && currentToken == null) {
+        try {
+          final w = await repository.request('GET', '/api/wallet');
+          if (w['balance'] is num) {
+            nextBalance = (w['balance'] as num).toInt();
+            nextWalletTxs = ((w['transactions'] as List?) ?? const [])
+                .cast<Json>();
+            nextWalletLoaded = true;
+          }
+        } catch (_) {
+          // Keep previous wallet state if server doesn't expose wallet yet.
+        }
+      }
       List<Json> nextSessions = [];
       if (currentToken != null) {
+        final monitorPath = superadmin && locParam != null
+            ? '/api/officer/monitor?location_id=${Uri.encodeComponent(locParam)}'
+            : '/api/officer/monitor';
         final r = await repository.request(
           'GET',
-          '/api/officer/monitor',
+          monitorPath,
           token: currentToken,
         );
         nextSessions = (r['sessions'] as List).cast<Json>();
@@ -343,8 +446,14 @@ class RemoteService extends ChangeNotifier {
       if (disposed || epoch != _contextEpoch) return;
       observe(c);
       capacity = c;
+      if (c['locations'] is List) {
+        locations = (c['locations'] as List).cast<Json>();
+      }
       ticket = nextTicket;
       sessions = nextSessions;
+      walletBalance = nextBalance;
+      walletTransactions = nextWalletTxs;
+      walletLoaded = nextWalletLoaded;
       online = true;
       error = null;
       consecutiveFailures = 0;
@@ -579,6 +688,9 @@ class RemoteService extends ChangeNotifier {
     token = r['token'] as String;
     username = r['username'] as String;
     role = r['role'] as String? ?? 'PETUGAS';
+    staffLocationId = r['location_id'] as String?;
+    staffLocationName = r['location_name'] as String?;
+    selectedLocationId = staffLocationId;
     sessionNotice = null;
     emit();
     await sync();
@@ -593,8 +705,14 @@ class RemoteService extends ChangeNotifier {
     final old = token;
     token = null;
     username = null;
+    staffLocationId = null;
+    staffLocationName = null;
+    selectedLocationId = null;
     role = 'PENGENDARA';
     sessions = [];
+    walletBalance = 0;
+    walletTransactions = [];
+    walletLoaded = false;
     _pending.removeWhere(
       (p) =>
           ((p['path'] as String).startsWith('/api/officer/') ||

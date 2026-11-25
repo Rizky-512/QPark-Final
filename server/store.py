@@ -46,6 +46,8 @@ class Store(ManagementMixin, CustomerAccessMixin):
             db.execute('INSERT OR IGNORE INTO metadata VALUES(?,?)', ('qr_secret', secrets.token_hex(32)))
             self.migrate_v4(db)
             self.migrate_customer_access(db)
+            from .locations_wallet import migrate_v5
+            migrate_v5(self, db)
             self.secret = bytes.fromhex(db.execute("SELECT value FROM metadata WHERE key='qr_secret'").fetchone()[0])
 
     @contextmanager
@@ -72,17 +74,40 @@ class Store(ManagementMixin, CustomerAccessMixin):
             db.execute('INSERT INTO officers(id,username,password_hash,salt,active,role) VALUES(?,?,?,?,1,?)',
                        (uid('OFF'), username.strip().lower(), password_hash(password, salt), salt, role))
 
-    def audit(self, db, event, entity, actor, now, result='OK'):
-        db.execute('INSERT INTO audit VALUES(?,?,?,?,?,?)',
-                   (uid('AUD'), entity, event, actor, now, result))
+    def audit(self, db, event, entity, actor, now, result='OK', location_id=None):
+        db.execute(
+            'INSERT INTO audit(id,entity_id,event_type,actor,server_time,result,location_id) VALUES(?,?,?,?,?,?,?)',
+            (uid('AUD'), entity, event, actor, now, result, location_id),
+        )
 
-    def _officer(self, db, token, now):
+    def _officer_row(self, db, token, now):
         found = db.execute('''SELECT o.* FROM logins l JOIN officers o ON o.id=l.officer_id
                               WHERE l.digest=? AND l.revoked=0 AND l.expires_at>? AND o.active=1''',
                            (digest(token), now)).fetchone()
         if not found:
             raise RuleError('Sesi petugas tidak sah atau telah berakhir. Login kembali.', 'unauthorized', 401)
-        return found['id']
+        return dict(found)
+
+    def _officer(self, db, token, now):
+        return self._officer_row(db, token, now)['id']
+
+    def _location_for_staff(self, officer, requested=None):
+        from .locations_wallet import DEFAULT_LOCATION_ID
+        if officer['role'] == 'SUPERADMIN':
+            return requested or DEFAULT_LOCATION_ID
+        loc_id = officer.get('location_id') or DEFAULT_LOCATION_ID
+        if requested and requested != loc_id:
+            raise RuleError('Akun ini hanya dapat mengelola lokasi yang ditugaskan.', 'location_forbidden', 403)
+        return loc_id
+
+    def _check_session_location(self, officer, session):
+        from .locations_wallet import DEFAULT_LOCATION_ID
+        if officer['role'] == 'SUPERADMIN':
+            return
+        staff_loc = officer.get('location_id') or DEFAULT_LOCATION_ID
+        sess_loc = session.get('location_id') or DEFAULT_LOCATION_ID
+        if staff_loc != sess_loc:
+            raise RuleError('Kendaraan ini terdaftar di lokasi parkir lain.', 'location_mismatch', 403)
 
     def qr(self, window_id):
         # Secret never leaves server. Persist only digest, rederive for authorized ticket lookup.
@@ -115,7 +140,13 @@ class Store(ManagementMixin, CustomerAccessMixin):
                     self.audit(db, 'PENALTY_CREATED', invoice_id, 'SYSTEM', now)
 
     def _view(self, db, sid, now, include_qr=True):
+        from .locations_wallet import DEFAULT_LOCATION_ID
         s = self._session(db, sid)
+        loc_id = s.get('location_id') or DEFAULT_LOCATION_ID
+        loc = db.execute('SELECT name, address FROM locations WHERE id=?', (loc_id,)).fetchone()
+        s['location_id'] = loc_id
+        s['location_name'] = loc['name'] if loc else 'QPark'
+        s['location_address'] = loc['address'] if loc else ''
         w = self._window(db, sid)
         invoices = [dict(x) for x in db.execute('SELECT * FROM invoices WHERE session_id=? ORDER BY issued_at,id', (sid,))]
         auth = db.execute("SELECT * FROM authorizations WHERE session_id=? AND state='ACTIVE'", (sid,)).fetchone()
@@ -211,7 +242,13 @@ class Store(ManagementMixin, CustomerAccessMixin):
             raw = secrets.token_urlsafe(32)
             db.execute('INSERT INTO logins VALUES(?,?,?,0)', (digest(raw),o['id'],now+LOGIN_SECONDS))
             self.audit(db,'LOGIN',o['id'],o['id'],now)
-            return {'token':raw,'username':o['username'],'role':o['role'],'expires_at':now+LOGIN_SECONDS}
+            loc_id = o['location_id']
+            loc_row = db.execute('SELECT name FROM locations WHERE id=?', (loc_id,)).fetchone() if loc_id else None
+            return {
+                'token': raw, 'username': o['username'], 'role': o['role'],
+                'location_id': loc_id, 'location_name': loc_row['name'] if loc_row else None,
+                'expires_at': now + LOGIN_SECONDS,
+            }
         if method=='POST' and path=='/api/logout':
             # Idempotent revoke even if already expired/revoked, but no leak of login details.
             login = db.execute('SELECT * FROM logins WHERE digest=?', (digest(token),)).fetchone()
@@ -221,7 +258,19 @@ class Store(ManagementMixin, CustomerAccessMixin):
             return {'revoked':True}
         if method=='GET' and path=='/api/capacity':
             from .vehicle_categories import capacity_view
-            return capacity_view(db, self.settings(db))
+            from .locations_wallet import DEFAULT_LOCATION_ID, get_location, list_locations_with_capacity
+            req_loc = query.get('location_id', [''])[0] or None
+            if not req_loc and token:
+                try:
+                    staff = self._officer_row(db, token, now)
+                    req_loc = staff.get('location_id')
+                except RuleError:
+                    pass
+            loc = get_location(db, req_loc or DEFAULT_LOCATION_ID)
+            view = capacity_view(db, self.settings(db, loc['id']), loc['id'])
+            view['location'] = {'id': loc['id'], 'name': loc['name'], 'address': loc['address'], 'active': bool(loc['active'])}
+            view['locations'] = list_locations_with_capacity(db, include_inactive=False)
+            return view
         if method=='GET' and path=='/api/ticket':
             p=plate(query.get('plate',[''])[0])
             found=db.execute("SELECT id FROM sessions WHERE plate=? AND state!='COMPLETED'",(p,)).fetchone()
@@ -260,16 +309,27 @@ class Store(ManagementMixin, CustomerAccessMixin):
                 if outcome not in ('PENDING','SUCCESS','FAILED'):raise RuleError('Hasil simulasi tidak valid.','outcome',400)
                 return self.settle(db, inv, outcome, data['operation_key'], 'DRIVER', 'QR_SIMULASI', now)
             return self._operation(db,'payment',data,'DRIVER',now,pay)
+        from .locations_wallet import wallet_dispatch
+        loc_wallet = wallet_dispatch(self, db, method, path, query, data, token, now, None)
+        if loc_wallet is not None:
+            return loc_wallet
         extra=self.extra_dispatch(db, method, path, query, data, token, now)
         if extra is not None:return extra
         if path.startswith('/api/officer/'):
-            actor=self._officer(db,token,now)
+            officer = self._officer_row(db, token, now)
+            actor = officer['id']
             if method=='GET' and path=='/api/officer/monitor':
                 q=query.get('q',[''])[0].upper().replace(' ','')
-                rows=db.execute("SELECT id FROM sessions WHERE state!='COMPLETED' AND instr(plate,?)>0 ORDER BY entered_at DESC",(q,)).fetchall()
+                req_loc = query.get('location_id', [''])[0] or None
+                if officer['role'] == 'SUPERADMIN' and not req_loc:
+                    rows=db.execute("SELECT id FROM sessions WHERE state!='COMPLETED' AND instr(plate,?)>0 ORDER BY entered_at DESC",(q,)).fetchall()
+                else:
+                    loc_id = self._location_for_staff(officer, req_loc)
+                    rows=db.execute("SELECT id FROM sessions WHERE state!='COMPLETED' AND location_id=? AND instr(plate,?)>0 ORDER BY entered_at DESC",(loc_id, q)).fetchall()
                 return {'sessions':[self._view(db,s['id'],now,False) for s in rows]}
             if method=='POST' and path=='/api/officer/entry':
                 def enter():
+                    loc_id = self._location_for_staff(officer, data.get('location_id'))
                     p=plate(data.get('plate'))
                     if data.get('verified') is not True or not (data.get('image_source')=='manual' or (data.get('image_readable') is True and data.get('image_source') in ('test_photo','camera'))):
                         raise RuleError('Kendaraan wajib diverifikasi. Jika menggunakan gambar, pastikan gambar terbaca.','verification',400)
@@ -278,22 +338,24 @@ class Store(ManagementMixin, CustomerAccessMixin):
                     registered=db.execute('SELECT vehicle_type FROM vehicle_categories WHERE plate=? LIMIT 1',(p,)).fetchone()
                     kind=registered['vehicle_type'] if registered else data.get('vehicle_type','MOBIL')
                     if kind not in ('MOBIL','MOTOR'):raise RuleError('Pilih Mobil atau Motor.','vehicle',400)
-                    settings=self.settings(db)
-                    if db.execute("SELECT count(*) FROM sessions WHERE state!='COMPLETED' AND vehicle_type=?",(kind,)).fetchone()[0]>=settings['motor_capacity' if kind=='MOTOR' else 'car_capacity']:
+                    settings=self.settings(db, loc_id)
+                    if db.execute("SELECT count(*) FROM sessions WHERE state!='COMPLETED' AND vehicle_type=? AND location_id=?",(kind, loc_id)).fetchone()[0]>=settings['motor_capacity' if kind=='MOTOR' else 'car_capacity']:
                         raise RuleError('Area parkir penuh. Kendaraan ditolak.','full')
                     sid=uid('QP')
-                    db.execute("INSERT INTO sessions(id,plate,entered_at,entered_by,state,vehicle_type,hourly_rate) VALUES(?,?,?,?,'IN_AREA',?,?)",(sid,p,now,actor,kind,settings['motor_rate' if kind=='MOTOR' else 'car_rate']))
+                    db.execute("INSERT INTO sessions(id,plate,entered_at,entered_by,state,vehicle_type,hourly_rate,location_id) VALUES(?,?,?,?,'IN_AREA',?,?,?)",(sid,p,now,actor,kind,settings['motor_rate' if kind=='MOTOR' else 'car_rate'],loc_id))
                     self.audit(db,'ENTRY',sid,actor,now,data['image_source'])
                     return {'session_id':sid}
                 return self._operation(db,'entry',data,actor,now,enter)
             if method=='POST' and path=='/api/officer/scan':
                 w,s=self._token_window(db,data.get('qr',''))
+                self._check_session_location(officer, s)
                 if s['state']!='EXIT_AUTHORIZED' and now>w['deadline']:
                     raise RuleError('Izin 15 menit habis. Lunasi tagihan tambahan sesuai tarif kendaraan.','window_expired')
                 return {'session':self._view(db,s['id'],now)}
             if method=='POST' and path=='/api/officer/authorize':
                 def authorize():
                     w,s=self._token_window(db,data.get('qr',''))
+                    self._check_session_location(officer, s)
                     if data.get('verified') is not True or plate(data.get('plate'))!=s['plate']:
                         raise RuleError('Nopol kendaraan harus cocok dan diverifikasi petugas.','plate_mismatch')
                     existing=db.execute("SELECT id FROM authorizations WHERE session_id=? AND state='ACTIVE'",(s['id'],)).fetchone()
@@ -309,6 +371,7 @@ class Store(ManagementMixin, CustomerAccessMixin):
                 complete=path.endswith('/complete')
                 def finish():
                     sid=data.get('session_id');s=self._session(db,sid)
+                    self._check_session_location(officer, s)
                     a=db.execute('SELECT * FROM authorizations WHERE id=? AND session_id=?',(data.get('authorization_id'),sid)).fetchone()
                     if not a:raise RuleError('Persetujuan keluar tidak ditemukan.','authorization')
                     if complete and s['state']=='COMPLETED' and a['state']=='COMPLETED':return {'session_id':sid,'authorization_id':a['id']}

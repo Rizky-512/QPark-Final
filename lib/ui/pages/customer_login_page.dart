@@ -54,7 +54,7 @@ class _CustomerLoginPageState extends State<CustomerLoginPage> {
       context,
       MaterialPageRoute(
         builder: (context) => Scaffold(
-          appBar: AppBar(title: const Text('Akses admin & petugas')),
+          appBar: AppBar(title: const Text('Akses pengelola & petugas')),
           body: LoginPage(
             service: widget.service,
             onLogin: () => Navigator.pop(context),
@@ -158,7 +158,7 @@ class _CustomerLoginPageState extends State<CustomerLoginPage> {
           key: const Key('officer-login'),
           onPressed: busy ? null : staff,
           icon: const Icon(Icons.badge_outlined),
-          label: const Text('Login admin / petugas'),
+          label: const Text('Login pengelola / petugas'),
         ),
       ],
     ),
