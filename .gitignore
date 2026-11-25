@@ -26,5 +26,10 @@ ios/Flutter/ephemeral/
 ios/Flutter/Generated.xcconfig
 ios/Flutter/flutter_export_environment.sh
 coverage/
+# Generated test reports and logs belong in local build output or CI artifacts.
+*.log
+/docs/hasil/
+/test-results/
+/playwright-report/
 # Local remnants/data of the retired desktop prototype are not source.
 /QPark/

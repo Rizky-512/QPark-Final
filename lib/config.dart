@@ -15,8 +15,6 @@ abstract final class AppConfig {
     'QPARK_SIMULATION',
     defaultValue: true,
   );
-  static const databaseName =
-      'qpark_flutter_v1'; // legacy data remains untouched
 
   /// Supabase's project URL and public/publishable key are injected at build
   /// time. Never put a service-role key in a Flutter application.

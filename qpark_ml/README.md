@@ -177,7 +177,7 @@ flutter analyze --no-pub
 
 Tes pelatihan memerlukan lingkungan ML; tanpa sklearn tes tersebut ditandai skip,
 bukan dianggap lulus. Tes fitur lainnya menggunakan pustaka standar. Seluruh fixture
-terpisah dari data operasional. Hasil eksekusi tercatat di `docs/HASIL_REGRESI_LINEAR.md`.
+terpisah dari data operasional. Simpan hasil eksekusi lokal di `build/`; laporan historis tersedia dalam riwayat Git.
 
 Rujukan implementasi: [LinearRegression](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LinearRegression.html)
 dan [pencegahan kebocoran data](https://scikit-learn.org/stable/common_pitfalls.html).

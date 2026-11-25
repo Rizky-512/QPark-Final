@@ -9,7 +9,7 @@ Pembaruan prototipe: akses tiket terikat pelanggan, kode penghubung petugas, pol
 
 Revisi lanjutan dari QPark Flutter yang sama. Styling hijau dan komponen tema dipertahankan. Pembayaran QR tetap tersedia; input kendaraan manual, pembayaran manual, admin, dan riwayat dipulihkan sesuai permintaan terbaru.
 
-Beranda publik menampilkan sisa slot Mobil dan Motor tanpa login. Login customer bersifat opsional; akses admin/petugas tetap dilindungi. Menu **Analisis** tersedia khusus admin. Lihat [panduan kapasitas terpisah](docs/KAPASITAS_TERPISAH.md). Login Google dan penyimpanan nopol per akun melalui Supabase tersedia saat build diberi konfigurasi project. Lihat [panduan Supabase](docs/SUPABASE_MIGRASI.md), [perubahan v5](docs/PERUBAHAN_V5.md), dan [pengujian v5](docs/HASIL_PENGUJIAN_V5.md).
+Beranda publik menampilkan sisa slot Mobil dan Motor tanpa login. Login customer bersifat opsional; akses admin/petugas tetap dilindungi. Menu **Analisis** tersedia khusus admin. Lihat [panduan kapasitas terpisah](docs/KAPASITAS_TERPISAH.md). Login Google dan penyimpanan nopol per akun melalui Supabase tersedia saat build diberi konfigurasi project. Lihat [panduan Supabase](docs/SUPABASE_MIGRASI.md) dan [perubahan v5](docs/PERUBAHAN_V5.md).
 
 ## Jalankan tanpa IDE
 
@@ -95,7 +95,7 @@ Untuk mengaktifkan Supabase, salin `dart_defines.example.json` menjadi `dart_def
 
 Analisis Parkir kini menampilkan prediksi supervised learning 30 menit, ringkasan sederhana, dan pie chart motor/mobil. Tombol **Jelaskan dengan AI** memakai Gemini untuk menjelaskan keluaran regresi. Masukkan `GEMINI_API_KEY` dan `GEMINI_MODEL` di **Supabase → Edge Functions → Secrets**, lalu pasang migrasi dan deploy function sesuai [panduan langkah demi langkah](docs/PREDIKSI_PARKIR.md). Regresi tetap bekerja tanpa Gemini. Vercel melayani hasil build di `rilis/web`.
 
-Backend menggunakan pustaka standar Python dan SQLite. Build web menyalin renderer, font lokal, dan pustaka pemindai QR. File tema `lib/ui/common.dart` tidak berubah.
+Backend menggunakan pustaka standar Python dan SQLite. Build web menyalin renderer, font lokal, dan pustaka pemindai QR.
 
 Android: jalankan server kemudian `flutter run --dart-define=API_BASE_URL=http://10.0.2.2:7357` untuk emulator. APK release memakai alamat server HTTPS: `flutter build apk --release --dart-define=API_BASE_URL=https://ALAMAT_SERVER`. SDK Android diperlukan; APK tidak disertakan. iOS memerlukan macOS/Xcode/signing.
 
@@ -103,6 +103,12 @@ Untuk APK dengan backend Supabase, gunakan `flutter build apk --debug --dart-def
 
 Jika build Android berhenti pada `compileDebugJavaWithJavac` dengan pesan `Cannot query the value of this provider because it has no value available`, jalankan `flutter doctor -v` terlebih dahulu. Pada komputer pengembangan QPark, SDK Platform 36 tercatat terpasang tetapi `platforms/android-36/android.jar` dan `core-for-system-modules.jar` hilang. Memasang ulang platform SDK memulihkan berkas tersebut. Periksa kelengkapan SDK sebelum mengganti versi Gradle atau Kotlin. Gunakan Android Studio SDK Manager untuk memasang ulang **Android SDK Platform 36**, atau pindahkan instalasi platform yang tidak lengkap ke cadangan di luar direktori SDK lalu jalankan `sdkmanager "platforms;android-36"` dari Android SDK Command-line Tools. Jangan menghapus seluruh SDK atau data aplikasi untuk memperbaiki paket platform ini.
 
-`docs/PERUBAHAN_V4.md` menjelaskan perubahan kebutuhan terhadap SRS sebelumnya. `docs/HASIL_PENGUJIAN.md` mencatat hasil nyata dan batas pengujian. Prototipe Flet dan dokumentasi v2/v3 telah dikeluarkan dari versi aktif; arsipnya tetap tersedia di [riwayat GitHub sebelum perapian](https://github.com/Rizky-512/QPark-Final/tree/f71d823).
+`docs/PERUBAHAN_V4.md` menjelaskan perubahan kebutuhan terhadap SRS sebelumnya. Prototipe Flet dan dokumentasi v2/v3 telah dikeluarkan dari versi aktif; arsipnya tetap tersedia di [riwayat GitHub sebelum perapian](https://github.com/Rizky-512/QPark-Final/tree/f71d823).
 
 Smoke test browser opsional untuk developer: pasang Node.js dan Playwright (`npm install --no-save playwright` serta `npx playwright install chromium`), lalu `node scripts/browser_smoke.cjs`. Tes memakai database sementara dan port 7367; `PYTHON`, `QPARK_TEST_PORT`, dan `PLAYWRIGHT_CHROMIUM_EXECUTABLE` dapat dikonfigurasi. Node/Playwright tidak diperlukan untuk menjalankan aplikasi biasa.
+
+## Kebersihan repository
+
+Kode pengujian tetap disimpan di `test`, `server/tests`, dan `supabase/tests`. Simpan log, screenshot, dan hasil pengujian baru di `build/` atau sebagai artifact CI, bukan di Git. Laporan hasil uji historis dan manifest paket lama telah dihapus; riwayatnya tetap tersedia di Git. `rilis/source_manifest.json` tetap diperlukan untuk mencocokkan build web dengan source.
+
+Folder `rilis/web` diperlukan oleh Vercel dan launcher lokal. Pengurangan ukuran lebih lanjut memerlukan pemindahan build web ke CI dan distribusi hasil build sebagai artifact, sebelum folder ini dapat dikeluarkan dari Git. Menghapus laporan tidak mengubah ukuran APK; hasil pengujian tidak dibundel ke aplikasi.

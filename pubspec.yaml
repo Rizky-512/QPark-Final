@@ -9,11 +9,6 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
-  drift: 2.35.0
-  drift_flutter: 0.3.1
-  path_provider: ^2.1.6
-  cryptography: ^2.9.0
-  cryptography_flutter: ^2.3.4
   http: ^1.6.0
   shared_preferences: ^2.5.3
   supabase_flutter: ^2.18.3
@@ -29,11 +24,8 @@ dev_dependencies:
   integration_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-  sqlite3: ^3.5.2
 flutter:
   uses-material-design: true
-  assets:
-    - assets/schema.sql
   fonts:
     - family: Roboto
       fonts:
