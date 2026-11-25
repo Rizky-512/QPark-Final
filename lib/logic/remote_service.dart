@@ -101,6 +101,10 @@ class RemoteService extends ChangeNotifier {
       'qpark_selected_supabase_${identity.id}';
 
   final Map<String, String> vehicleTypes = {};
+  final Map<String, bool> evPlates = {};
+
+  List<String> get registeredEvPlates =>
+      plates.where((p) => evPlates[p] == true).toList();
 
   Future<void> refreshVehicleTypes() async {
     final owner = operationOwner;
@@ -109,19 +113,91 @@ class RemoteService extends ChangeNotifier {
     vehicleTypes
       ..clear()
       ..addAll(Map<String, String>.from(r['vehicle_types'] as Map? ?? {}));
+    if (r['ev_plates'] is Map) {
+      evPlates
+        ..clear()
+        ..addAll(
+          (r['ev_plates'] as Map).map(
+            (k, v) => MapEntry(k.toString(), v == true),
+          ),
+        );
+    }
     emit();
   }
 
   void _restoreDemoVehicles() {
     vehicleTypes.clear();
+    evPlates.clear();
     plates = List<String>.from(
       preferences.getStringList('qpark_plates_v3') ?? [],
     );
+    final savedEv = preferences.getStringList('qpark_ev_plates_v1') ?? [];
+    for (final p in savedEv) {
+      evPlates[p] = true;
+    }
     selected = preferences.getString('qpark_selected_v3');
     if (!plates.contains(selected)) {
       selected = plates.isEmpty ? null : plates.first;
     }
     ticket = null;
+  }
+
+  // Google-gated theme & profile customization (per Google user ID).
+  bool darkMode = false;
+  int themeColorValue = 0xFF166534;
+  String? customAvatarBase64;
+  bool get canCustomizeAppearance => customerIdentity != null;
+  bool get activeDarkMode => canCustomizeAppearance && darkMode;
+  int get activeThemeColorValue =>
+      canCustomizeAppearance ? themeColorValue : 0xFF166534;
+  String? get activeCustomAvatarBase64 =>
+      canCustomizeAppearance ? customAvatarBase64 : null;
+
+  void _loadAppearance(CustomerIdentity? identity) {
+    if (identity == null) {
+      darkMode = false;
+      themeColorValue = 0xFF166534;
+      customAvatarBase64 = null;
+      return;
+    }
+    final uid = identity.id;
+    darkMode = preferences.getString('qpark_theme_dark_$uid') == '1';
+    themeColorValue =
+        int.tryParse(preferences.getString('qpark_theme_color_$uid') ?? '') ??
+        0xFF166534;
+    customAvatarBase64 = preferences.getString('qpark_avatar_$uid');
+  }
+
+  Future<void> setDarkMode(bool value) async {
+    final identity = customerIdentity;
+    if (identity == null) return;
+    darkMode = value;
+    await preferences.setString(
+      'qpark_theme_dark_${identity.id}',
+      value ? '1' : '0',
+    );
+    emit();
+  }
+
+  Future<void> setThemeColor(int argb) async {
+    final identity = customerIdentity;
+    if (identity == null) return;
+    themeColorValue = argb;
+    await preferences.setString('qpark_theme_color_${identity.id}', '$argb');
+    emit();
+  }
+
+  Future<void> setCustomAvatarBase64(String? b64) async {
+    final identity = customerIdentity;
+    if (identity == null) return;
+    customAvatarBase64 = b64;
+    final key = 'qpark_avatar_${identity.id}';
+    if (b64 == null || b64.isEmpty) {
+      await preferences.remove(key);
+    } else {
+      await preferences.setString(key, b64);
+    }
+    emit();
   }
 
   Future<void> _applyCustomerIdentity(CustomerIdentity? identity) async {
@@ -132,6 +208,7 @@ class RemoteService extends ChangeNotifier {
     customerDemo = false;
     customerError = null;
     ticket = null;
+    _loadAppearance(identity);
     if (identity == null) {
       _restoreDemoVehicles();
       emit();
@@ -201,6 +278,8 @@ class RemoteService extends ChangeNotifier {
       : selectedLocationId;
   Json? capacity, ticket;
   List<Json> locations = [];
+  List<Json> promos = [];
+  List<Json> evBookings = [];
   List<Json> sessions = [];
   int walletBalance = 0;
   List<Json> walletTransactions = [];
@@ -366,10 +445,55 @@ class RemoteService extends ChangeNotifier {
   Future<Json> inspectPaymentQr(String qr) =>
       repository.request('POST', '/api/wallet/inspect', body: {'qr': qr});
 
-  Future<Json> payWithWallet({String? qr, String? invoiceId}) async {
+  Future<void> refreshEvBookings() async {
+    if (officer || !signedIn) return;
+    final owner = operationOwner;
+    final r = await repository.request('GET', '/api/ev/bookings');
+    if (disposed || operationOwner != owner) return;
+    observe(r);
+    if (r['bookings'] is List) {
+      evBookings = (r['bookings'] as List).cast<Json>();
+      emit();
+    }
+  }
+
+  Future<Json> bookEv({
+    required String locationId,
+    required String plate,
+    required int durationHours,
+  }) async {
+    final r = await post('/api/ev/book', {
+      'location_id': locationId,
+      'plate': plate,
+      'duration_hours': durationHours,
+    }, idempotent: true);
+    if (!disposed && r['bookings'] is List) {
+      evBookings = (r['bookings'] as List).cast<Json>();
+      emit();
+    }
+    return r;
+  }
+
+  Future<Json> cancelEvBooking(String bookingId) async {
+    final r = await post('/api/ev/cancel', {
+      'booking_id': bookingId,
+    }, idempotent: true);
+    if (!disposed && r['bookings'] is List) {
+      evBookings = (r['bookings'] as List).cast<Json>();
+      emit();
+    }
+    return r;
+  }
+
+  Future<Json> payWithWallet({
+    String? qr,
+    String? invoiceId,
+    String? promoId,
+  }) async {
     final r = await post('/api/wallet/pay', {
       'qr': ?qr,
       'invoice_id': ?invoiceId,
+      'promo_id': ?promoId,
     }, idempotent: true);
     if (!disposed) {
       if (r['balance'] is num) {
@@ -418,7 +542,8 @@ class RemoteService extends ChangeNotifier {
       int nextBalance = walletBalance;
       List<Json> nextWalletTxs = walletTransactions;
       bool nextWalletLoaded = walletLoaded;
-      if (signedIn && currentToken == null) {
+      final hasV5Backend = c['locations'] is List;
+      if (signedIn && currentToken == null && hasV5Backend) {
         try {
           final w = await repository.request('GET', '/api/wallet');
           if (w['balance'] is num) {
@@ -430,6 +555,15 @@ class RemoteService extends ChangeNotifier {
         } catch (_) {
           // Keep previous wallet state if server doesn't expose wallet yet.
         }
+      }
+      List<Json> nextEvBookings = evBookings;
+      if (signedIn && currentToken == null && hasV5Backend) {
+        try {
+          final eb = await repository.request('GET', '/api/ev/bookings');
+          if (eb['bookings'] is List) {
+            nextEvBookings = (eb['bookings'] as List).cast<Json>();
+          }
+        } catch (_) {}
       }
       List<Json> nextSessions = [];
       if (currentToken != null) {
@@ -449,6 +583,10 @@ class RemoteService extends ChangeNotifier {
       if (c['locations'] is List) {
         locations = (c['locations'] as List).cast<Json>();
       }
+      if (c['promos'] is List) {
+        promos = (c['promos'] as List).cast<Json>();
+      }
+      evBookings = nextEvBookings;
       ticket = nextTicket;
       sessions = nextSessions;
       walletBalance = nextBalance;
@@ -479,6 +617,7 @@ class RemoteService extends ChangeNotifier {
     String value, {
     String? replacing,
     String? vehicleType,
+    bool isEv = false,
   }) async {
     final normal = normalizePlate(value);
     if (plates.contains(normal) && normal != replacing) {
@@ -489,7 +628,7 @@ class RemoteService extends ChangeNotifier {
       await repository.request(
         'POST',
         '/api/customer/vehicle-type',
-        body: {'plate': normal, 'vehicle_type': vehicleType},
+        body: {'plate': normal, 'vehicle_type': vehicleType, 'is_ev': isEv},
       );
       if (disposed || operationOwner != owner) return;
     }
@@ -513,16 +652,26 @@ class RemoteService extends ChangeNotifier {
     }
     if (customerIdentity?.id != identity?.id || disposed) return;
     plates = next;
-    if (vehicleType != null) vehicleTypes[normal] = vehicleType;
-    if (replacing != null &&
-        replacing != normal &&
-        vehicleTypes.containsKey(replacing)) {
-      await repository.request(
-        'POST',
-        '/api/customer/vehicle-type',
-        body: {'plate': replacing, 'remove': true},
+    if (vehicleType != null) {
+      vehicleTypes[normal] = vehicleType;
+      evPlates[normal] = isEv;
+    }
+    if (replacing != null && replacing != normal) {
+      evPlates.remove(replacing);
+      if (vehicleTypes.containsKey(replacing)) {
+        await repository.request(
+          'POST',
+          '/api/customer/vehicle-type',
+          body: {'plate': replacing, 'remove': true},
+        );
+        vehicleTypes.remove(replacing);
+      }
+    }
+    if (identity == null) {
+      await preferences.setStringList(
+        'qpark_ev_plates_v1',
+        evPlates.entries.where((e) => e.value).map((e) => e.key).toList(),
       );
-      vehicleTypes.remove(replacing);
     }
     await selectPlate(normal);
   }
@@ -546,6 +695,13 @@ class RemoteService extends ChangeNotifier {
     }
     if (customerIdentity?.id != identity?.id || disposed) return;
     vehicleTypes.remove(value);
+    evPlates.remove(value);
+    if (identity == null) {
+      await preferences.setStringList(
+        'qpark_ev_plates_v1',
+        evPlates.entries.where((e) => e.value).map((e) => e.key).toList(),
+      );
+    }
     plates = next;
     await selectPlate(
       selected == value ? (plates.isEmpty ? null : plates.first) : selected,
@@ -713,6 +869,8 @@ class RemoteService extends ChangeNotifier {
     walletBalance = 0;
     walletTransactions = [];
     walletLoaded = false;
+    evBookings = [];
+    _loadAppearance(null);
     _pending.removeWhere(
       (p) =>
           ((p['path'] as String).startsWith('/api/officer/') ||

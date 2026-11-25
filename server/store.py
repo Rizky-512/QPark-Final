@@ -48,6 +48,8 @@ class Store(ManagementMixin, CustomerAccessMixin):
             self.migrate_customer_access(db)
             from .locations_wallet import migrate_v5
             migrate_v5(self, db)
+            from .ev_promos import migrate_v6
+            migrate_v6(self, db)
             self.secret = bytes.fromhex(db.execute("SELECT value FROM metadata WHERE key='qr_secret'").fetchone()[0])
 
     @contextmanager
@@ -124,6 +126,8 @@ class Store(ManagementMixin, CustomerAccessMixin):
         return dict(row) if row else None
 
     def _maintain(self, db, now):
+        from .ev_promos import maintain_ev_bookings
+        maintain_ev_bookings(db, now)
         for a in db.execute("SELECT * FROM authorizations WHERE state='ACTIVE' AND expires_at<=?", (now,)).fetchall():
             db.execute("UPDATE authorizations SET state='EXPIRED' WHERE id=?", (a['id'],))
             db.execute("UPDATE sessions SET state='IN_AREA' WHERE id=? AND state='EXIT_AUTHORIZED'", (a['session_id'],))
@@ -259,6 +263,7 @@ class Store(ManagementMixin, CustomerAccessMixin):
         if method=='GET' and path=='/api/capacity':
             from .vehicle_categories import capacity_view
             from .locations_wallet import DEFAULT_LOCATION_ID, get_location, list_locations_with_capacity
+            from .ev_promos import ev_summary, active_promos_list
             req_loc = query.get('location_id', [''])[0] or None
             if not req_loc and token:
                 try:
@@ -268,8 +273,10 @@ class Store(ManagementMixin, CustomerAccessMixin):
                     pass
             loc = get_location(db, req_loc or DEFAULT_LOCATION_ID)
             view = capacity_view(db, self.settings(db, loc['id']), loc['id'])
+            view['ev'] = ev_summary(db, loc)
             view['location'] = {'id': loc['id'], 'name': loc['name'], 'address': loc['address'], 'active': bool(loc['active'])}
             view['locations'] = list_locations_with_capacity(db, include_inactive=False)
+            view['promos'] = active_promos_list(db, now)
             return view
         if method=='GET' and path=='/api/ticket':
             p=plate(query.get('plate',[''])[0])
@@ -313,6 +320,10 @@ class Store(ManagementMixin, CustomerAccessMixin):
         loc_wallet = wallet_dispatch(self, db, method, path, query, data, token, now, None)
         if loc_wallet is not None:
             return loc_wallet
+        from .ev_promos import ev_promo_dispatch
+        ev_promo = ev_promo_dispatch(self, db, method, path, query, data, token, now, None)
+        if ev_promo is not None:
+            return ev_promo
         extra=self.extra_dispatch(db, method, path, query, data, token, now)
         if extra is not None:return extra
         if path.startswith('/api/officer/'):

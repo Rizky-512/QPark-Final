@@ -122,6 +122,7 @@ def get_location(db, location_id):
 
 
 def location_capacity_item(db, loc):
+    from .ev_promos import ev_summary
     categories = {}
     for kind, key in [('MOBIL', 'car_capacity'), ('MOTOR', 'motor_capacity')]:
         used = db.execute(
@@ -145,7 +146,8 @@ def location_capacity_item(db, loc):
         available=sum(x['available'] for x in categories.values()),
         full=all(x['full'] for x in categories.values()),
         categories=categories,
-        rates={'MOBIL': loc['car_rate'], 'MOTOR': loc['motor_rate']},
+        ev=ev_summary(db, loc),
+        rates={'MOBIL': loc['car_rate'], 'MOTOR': loc['motor_rate'], 'EV': loc.get('ev_rate', 10000)},
     )
 
 
@@ -161,7 +163,7 @@ def wallet_view(db, owner):
         dict(r)
         for r in db.execute(
             '''SELECT id, kind, amount, balance_after, description, reference_id, created_at
-               FROM wallet_transactions WHERE owner=? ORDER BY created_at DESC, id DESC LIMIT 50''',
+               FROM wallet_transactions WHERE owner=? ORDER BY created_at DESC, rowid DESC LIMIT 50''',
             (owner,),
         ).fetchall()
     ]
@@ -205,6 +207,10 @@ def wallet_dispatch(store, db, method, path, query, data, token, now, owner):
                     for k, v in values.items()
                 ):
                     raise RuleError('Isi kapasitas 0-1.000.000 dan tarif 1-1.000.000.', 'settings', 400)
+                ev_cap = data.get('ev_capacity', 4)
+                ev_rate = data.get('ev_rate', 10000)
+                if type(ev_cap) is not int or not (0 <= ev_cap <= 1000000) or type(ev_rate) is not int or not (1 <= ev_rate <= 1000000):
+                    raise RuleError('Isi kapasitas EV 0-1.000.000 dan tarif EV 1-1.000.000.', 'settings', 400)
                 active = data.get('active', True)
                 if type(active) is not bool:
                     raise RuleError('Status lokasi tidak valid.', 'location', 400)
@@ -218,18 +224,24 @@ def wallet_dispatch(store, db, method, path, query, data, token, now, owner):
                         ).fetchone()[0]
                         if values[key] < occupied:
                             raise RuleError(f'Kapasitas {kind} tidak boleh di bawah jumlah kendaraan aktif.', 'capacity')
+                    ev_used = db.execute(
+                        "SELECT count(*) FROM ev_bookings WHERE location_id=? AND status='ACTIVE'",
+                        (old['id'],),
+                    ).fetchone()[0]
+                    if ev_cap < ev_used:
+                        raise RuleError('Kapasitas EV tidak boleh di bawah jumlah booking EV aktif.', 'capacity')
                     if not active:
                         any_active = db.execute(
                             "SELECT count(*) FROM sessions WHERE state!='COMPLETED' AND location_id=?",
                             (old['id'],),
                         ).fetchone()[0]
-                        if any_active > 0:
-                            raise RuleError('Lokasi tidak dapat dinonaktifkan selama masih ada kendaraan parkir.', 'active_sessions')
+                        if any_active > 0 or ev_used > 0:
+                            raise RuleError('Lokasi tidak dapat dinonaktifkan selama masih ada kendaraan atau booking EV aktif.', 'active_sessions')
                     db.execute(
                         '''UPDATE locations SET name=?, address=?, car_capacity=?, motor_capacity=?,
-                           car_rate=?, motor_rate=?, active=? WHERE id=?''',
+                           car_rate=?, motor_rate=?, ev_capacity=?, ev_rate=?, active=? WHERE id=?''',
                         (name, address, values['car_capacity'], values['motor_capacity'],
-                         values['car_rate'], values['motor_rate'], int(active), old['id']),
+                         values['car_rate'], values['motor_rate'], ev_cap, ev_rate, int(active), old['id']),
                     )
                     if old['id'] == DEFAULT_LOCATION_ID:
                         meta = dict(values, capacity=values['car_capacity'] + values['motor_capacity'])
@@ -238,10 +250,10 @@ def wallet_dispatch(store, db, method, path, query, data, token, now, owner):
                     return {'location': location_capacity_item(db, get_location(db, old['id']))}
                 new_id = uid('LOC')
                 db.execute(
-                    '''INSERT INTO locations(id, name, address, car_capacity, motor_capacity, car_rate, motor_rate, active, created_at)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                    '''INSERT INTO locations(id, name, address, car_capacity, motor_capacity, car_rate, motor_rate, ev_capacity, ev_rate, active, created_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
                     (new_id, name, address, values['car_capacity'], values['motor_capacity'],
-                     values['car_rate'], values['motor_rate'], int(active), now),
+                     values['car_rate'], values['motor_rate'], ev_cap, ev_rate, int(active), now),
                 )
                 store.audit(db, 'LOCATION_CREATED', new_id, officer['id'], now, name)
                 return {'location': location_capacity_item(db, get_location(db, new_id))}
@@ -280,6 +292,7 @@ def wallet_dispatch(store, db, method, path, query, data, token, now, owner):
     if path == '/api/wallet/inspect' and method == 'POST':
         if owner is None:
             raise RuleError('Identitas pelanggan diperlukan.', 'customer_identity', 401)
+        from .ev_promos import active_promos_list
         inv_id = data.get('invoice_id') or parse_payment_qr(data.get('qr', ''))
         inv = db.execute('SELECT * FROM invoices WHERE id=?', (inv_id,)).fetchone()
         if not inv:
@@ -292,12 +305,14 @@ def wallet_dispatch(store, db, method, path, query, data, token, now, owner):
         if s['state'] != 'IN_AREA':
             raise RuleError('Sesi parkir tidak dapat dibayar saat ini.', 'state', 409)
         w = wallet_view(db, owner)
-        return {'invoice': dict(inv), 'session': s, 'balance': w['balance']}
+        promos = active_promos_list(db, now, s.get('location_id'))
+        return {'invoice': dict(inv), 'session': s, 'balance': w['balance'], 'promos': promos}
 
     if path == '/api/wallet/pay' and method == 'POST':
         if owner is None:
             raise RuleError('Identitas pelanggan diperlukan.', 'customer_identity', 401)
         def pay_wallet():
+            from .ev_promos import compute_promo_discount
             inv_id = data.get('invoice_id') or parse_payment_qr(data.get('qr', ''))
             inv = db.execute('SELECT * FROM invoices WHERE id=?', (inv_id,)).fetchone()
             if not inv:
@@ -312,24 +327,34 @@ def wallet_dispatch(store, db, method, path, query, data, token, now, owner):
             s = store._session(db, sid)
             if s['state'] != 'IN_AREA':
                 raise RuleError('Sesi tidak dapat dibayar saat ini.', 'state', 409)
+            loc_id = s.get('location_id') or DEFAULT_LOCATION_ID
+            discount, promo = compute_promo_discount(db, data.get('promo_id'), loc_id, inv['amount'], now)
+            payable = max(0, inv['amount'] - discount)
             row = db.execute('SELECT balance FROM wallets WHERE owner=?', (owner,)).fetchone()
             balance = row['balance'] if row else 0
-            if balance < inv['amount']:
+            if balance < payable:
                 raise RuleError('Saldo Dompet QPark tidak mencukupi. Silakan Top Up terlebih dahulu.', 'insufficient_balance', 409)
-            new_balance = balance - inv['amount']
-            db.execute('UPDATE wallets SET balance=?, updated_at=? WHERE owner=?', (new_balance, now, owner))
-            loc = get_location(db, s.get('location_id') or DEFAULT_LOCATION_ID)
-            tx_id = uid('WLT')
+            new_balance = balance - payable
             db.execute(
-                'INSERT INTO wallet_transactions VALUES(?,?,?,?,?,?,?,?)',
-                (tx_id, owner, 'PAYMENT', inv['amount'], new_balance,
-                 f"Bayar parkir {s['plate']} · {loc['name']}", inv['id'], now),
+                'INSERT INTO wallets(owner, balance, updated_at) VALUES(?,?,?) ON CONFLICT(owner) DO UPDATE SET balance=excluded.balance, updated_at=excluded.updated_at',
+                (owner, new_balance, now),
             )
+            loc = get_location(db, loc_id)
+            if payable > 0:
+                tx_id = uid('WLT')
+                desc = f"Bayar parkir {s['plate']} · {loc['name']}"
+                if promo:
+                    desc += f" (Promo: {promo['title']})"
+                db.execute(
+                    'INSERT INTO wallet_transactions VALUES(?,?,?,?,?,?,?,?)',
+                    (tx_id, owner, 'PAYMENT', payable, new_balance, desc, inv['id'], now),
+                )
             # Link unowned session to paying customer so exit QR & receipt appear in Aktivitas.
             existing_link = db.execute('SELECT owner FROM customer_links WHERE session_id=?', (sid,)).fetchone()
             if not existing_link:
                 db.execute('INSERT OR IGNORE INTO customer_links VALUES(?,?)', (sid, owner))
-            return store.settle(db, inv, 'SUCCESS', data['operation_key'], owner, 'EWALLET', now)
+            settled = store.settle(db, inv, 'SUCCESS', data['operation_key'], owner, 'EWALLET', now)
+            return {**settled, 'discount': discount, 'payable': payable}
         res = store._operation(db, 'wallet_pay', data, owner, now, pay_wallet)
         return {**res, 'balance': wallet_view(db, owner)['balance']}
 

@@ -44,15 +44,18 @@ class ManagementMixin:
         except sqlite3.OperationalError:
             row = None
         if row:
+            d = dict(row)
             return {
-                'location_id': row['id'],
-                'name': row['name'],
-                'address': row['address'],
-                'car_capacity': row['car_capacity'],
-                'motor_capacity': row['motor_capacity'],
-                'capacity': row['car_capacity'] + row['motor_capacity'],
-                'car_rate': row['car_rate'],
-                'motor_rate': row['motor_rate'],
+                'location_id': d['id'],
+                'name': d['name'],
+                'address': d['address'],
+                'car_capacity': d['car_capacity'],
+                'motor_capacity': d['motor_capacity'],
+                'capacity': d['car_capacity'] + d['motor_capacity'],
+                'car_rate': d['car_rate'],
+                'motor_rate': d['motor_rate'],
+                'ev_capacity': d.get('ev_capacity', 4),
+                'ev_rate': d.get('ev_rate', 10000),
             }
         return json.loads(db.execute("SELECT value FROM metadata WHERE key='parking_settings'").fetchone()[0])
 
@@ -119,15 +122,22 @@ class ManagementMixin:
                     values={k:data.get(k) for k in ('car_capacity','motor_capacity','car_rate','motor_rate')}
                     if any(type(v) is not int or v<(0 if k.endswith('capacity') else 1) or v>1000000 for k,v in values.items()):
                         raise RuleError('Isi kapasitas 0-1.000.000 dan tarif 1-1.000.000.', 'settings',400)
+                    current_set = self.settings(db, loc_id)
+                    ev_cap = data.get('ev_capacity', current_set.get('ev_capacity', 4))
+                    ev_rate = data.get('ev_rate', current_set.get('ev_rate', 10000))
+                    if type(ev_cap) is not int or not (0 <= ev_cap <= 1000000) or type(ev_rate) is not int or not (1 <= ev_rate <= 1000000):
+                        raise RuleError('Isi kapasitas EV 0-1.000.000 dan tarif EV 1-1.000.000.', 'settings', 400)
                     for kind,key in [('MOBIL','car_capacity'),('MOTOR','motor_capacity')]:
                         occupied=db.execute("SELECT count(*) FROM sessions WHERE state!='COMPLETED' AND vehicle_type=? AND location_id=?",(kind,loc_id)).fetchone()[0]
                         if values[key]<occupied:raise RuleError('Kapasitas '+kind+' tidak boleh di bawah jumlah kendaraan aktif.','capacity')
+                    ev_used=db.execute("SELECT count(*) FROM ev_bookings WHERE location_id=? AND status='ACTIVE'",(loc_id,)).fetchone()[0]
+                    if ev_cap<ev_used:raise RuleError('Kapasitas EV tidak boleh di bawah jumlah booking EV aktif.','capacity')
                     values['capacity']=values['car_capacity']+values['motor_capacity']
-                    db.execute('UPDATE locations SET car_capacity=?,motor_capacity=?,car_rate=?,motor_rate=? WHERE id=?',
-                               (values['car_capacity'],values['motor_capacity'],values['car_rate'],values['motor_rate'],loc_id))
+                    db.execute('UPDATE locations SET car_capacity=?,motor_capacity=?,car_rate=?,motor_rate=?,ev_capacity=?,ev_rate=? WHERE id=?',
+                               (values['car_capacity'],values['motor_capacity'],values['car_rate'],values['motor_rate'],ev_cap,ev_rate,loc_id))
                     if loc_id==DEFAULT_LOCATION_ID:
                         db.execute("UPDATE metadata SET value=? WHERE key='parking_settings'",(json.dumps(values),))
-                    self.audit(db,'SETTINGS_CHANGED',loc_id,actor,now,json.dumps(values),location_id=loc_id)
+                    self.audit(db,'SETTINGS_CHANGED',loc_id,actor,now,json.dumps({**values,'ev_capacity':ev_cap,'ev_rate':ev_rate}),location_id=loc_id)
                     return {'settings':self.settings(db, loc_id)}
             if path=='/api/admin/users':
                 if method=='GET':

@@ -60,14 +60,16 @@ class _WalletPageState extends State<WalletPage> {
   Widget build(BuildContext context) {
     final service = widget.args.service;
     final txs = service.walletTransactions;
+    final primary = Theme.of(context).colorScheme.primary;
+    final darkShade = Color.lerp(primary, Colors.black, 0.2)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Container(
           padding: const EdgeInsets.all(22),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [AppColors.primary, Color(0xFF15803D)],
+            gradient: LinearGradient(
+              colors: [darkShade, primary],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),

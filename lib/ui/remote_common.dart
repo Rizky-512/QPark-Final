@@ -9,11 +9,13 @@ class RemoteArgs {
     this.navigate, {
     this.openCheckout,
     this.openQrPay,
+    this.openEvBook,
   });
   final RemoteService service;
   final void Function(int) navigate;
   final void Function(String sessionId)? openCheckout;
   final VoidCallback? openQrPay;
+  final void Function([String? locationId])? openEvBook;
 }
 
 String wib(dynamic seconds) {
@@ -116,6 +118,66 @@ class CapacityCard extends StatelessWidget {
                         style: const TextStyle(color: AppColors.muted),
                       ),
                     ],
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 18),
+          ],
+          if (data?['ev'] is Map) ...[
+            Builder(
+              builder: (context) {
+                final ev = data!['ev'] as Map;
+                final total = (ev['total'] as num?)?.toInt() ?? 0;
+                final occupied = (ev['occupied'] as num?)?.toInt() ?? 0;
+                final available = (ev['available'] as num?)?.toInt() ?? 0;
+                final full = ev['full'] == true;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.ev_station_rounded,
+                          color: Color(0xFF0284C7),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'EV Charging Station',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                        ),
+                        StatusPill(
+                          !service.online
+                              ? 'Data terakhir'
+                              : full
+                              ? 'Penuh'
+                              : 'Tersedia',
+                          pending: !service.online,
+                          problem: full,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '$available slot EV tersedia',
+                      key: const ValueKey('capacity-EV'),
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(color: const Color(0xFF0284C7)),
+                    ),
+                    const SizedBox(height: 8),
+                    LinearProgressIndicator(
+                      color: const Color(0xFF0284C7),
+                      value: total == 0
+                          ? 1
+                          : (occupied / total).clamp(0.0, 1.0),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '$occupied terisi / $total slot EV · ${money((ev['rate'] as num?)?.toInt() ?? 10000)}/jam',
+                      style: const TextStyle(color: AppColors.muted),
+                    ),
                   ],
                 );
               },

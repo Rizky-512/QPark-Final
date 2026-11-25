@@ -180,19 +180,7 @@ void main() {
           );
           await tester.pumpWidget(QParkApp(initialize: () async => service));
           await settle(tester);
-          expect(find.text('Login customer'), findsOneWidget);
-          expect(find.byKey(const Key('nav-0')), findsNothing);
-          expect(
-            tester
-                .widget<OutlinedButton>(
-                  find.byKey(const Key('customer-google')),
-                )
-                .onPressed,
-            isNull,
-          );
-          await tester.ensureVisible(find.byKey(const Key('customer-demo')));
-          await tester.tap(find.byKey(const Key('customer-demo')));
-          await settle(tester);
+          // Core app opens directly into Home without mandatory Google login.
           expect(find.text('Parkir lebih mudah'), findsOneWidget);
           expect(find.byKey(const Key('login-username')), findsNothing);
           expect(tester.takeException(), isNull);
@@ -247,7 +235,9 @@ void main() {
           await settle(tester);
           await tester.tap(find.text('Keluar akun'));
           await settle(tester);
-          expect(find.text('Login customer'), findsOneWidget);
+          // Logging out of staff returns directly to guest Home mode.
+          expect(find.text('Parkir lebih mudah'), findsOneWidget);
+          expect(service.officer, isFalse);
           expect(service.plates, ['B123AB']);
           expect(tester.takeException(), isNull);
           await tester.pumpWidget(const SizedBox());

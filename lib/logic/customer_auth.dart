@@ -5,8 +5,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../domain/errors.dart';
 
 class CustomerIdentity {
-  const CustomerIdentity({required this.id, required this.displayName});
+  const CustomerIdentity({
+    required this.id,
+    required this.displayName,
+    this.avatarUrl,
+  });
   final String id, displayName;
+  final String? avatarUrl;
 }
 
 /// Authentication seam used by Supabase in production and a disabled provider
@@ -46,7 +51,12 @@ class SupabaseCustomerAuth implements CustomerAuthProvider {
     final metadata = user.userMetadata;
     final name =
         metadata?['full_name'] ?? metadata?['name'] ?? user.email ?? 'Customer';
-    return CustomerIdentity(id: user.id, displayName: name.toString());
+    final avatar = metadata?['avatar_url'] ?? metadata?['picture'];
+    return CustomerIdentity(
+      id: user.id,
+      displayName: name.toString(),
+      avatarUrl: avatar?.toString(),
+    );
   }
 
   @override

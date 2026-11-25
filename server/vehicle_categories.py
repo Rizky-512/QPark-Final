@@ -29,17 +29,25 @@ def category_request(store, db, method, path, query, data, token, now, owner):
     if owner is None:
         raise RuleError('Identitas pelanggan diperlukan.', 'customer_identity', 401)
     if method == 'GET' and path.endswith('vehicle-types'):
-        return {'vehicle_types': {r['plate']: r['vehicle_type'] for r in db.execute('SELECT * FROM vehicle_categories WHERE owner=?', (owner,))}}
+        rows = db.execute('SELECT * FROM vehicle_categories WHERE owner=?', (owner,)).fetchall()
+        return {
+            'vehicle_types': {r['plate']: r['vehicle_type'] for r in rows},
+            'ev_plates': {r['plate']: bool(dict(r).get('is_ev', 0)) for r in rows},
+        }
     p = plate(data.get('plate'))
     if method == 'POST' and data.get('remove') is True:
         db.execute('DELETE FROM vehicle_categories WHERE owner=? AND plate=?', (owner, p))
         return {'removed': True}
     kind = data.get('vehicle_type')
+    is_ev = bool(data.get('is_ev', False))
     if method != 'POST' or kind not in ('MOBIL', 'MOTOR'):
         raise RuleError('Pilih Mobil atau Motor.', 'vehicle', 400)
     if db.execute("SELECT 1 FROM sessions WHERE plate=? AND state!='COMPLETED' AND vehicle_type<>?", (p, kind)).fetchone():
         raise RuleError('Kategori tidak dapat berubah selama kendaraan sedang parkir.', 'vehicle_active', 409)
     if db.execute('SELECT 1 FROM vehicle_categories WHERE plate=? AND owner<>? AND vehicle_type<>?', (p, owner, kind)).fetchone():
         raise RuleError('Kategori nopol berbeda dari data tersimpan. Periksa nopol Anda.', 'vehicle_conflict', 409)
-    db.execute('INSERT INTO vehicle_categories(owner,plate,vehicle_type) VALUES(?,?,?) ON CONFLICT(owner,plate) DO UPDATE SET vehicle_type=excluded.vehicle_type', (owner, p, kind))
-    return {'vehicle_type': kind}
+    db.execute(
+        'INSERT INTO vehicle_categories(owner,plate,vehicle_type,is_ev) VALUES(?,?,?,?) ON CONFLICT(owner,plate) DO UPDATE SET vehicle_type=excluded.vehicle_type, is_ev=excluded.is_ev',
+        (owner, p, kind, int(is_ev)),
+    )
+    return {'vehicle_type': kind, 'is_ev': is_ev}

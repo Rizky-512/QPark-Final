@@ -18,96 +18,141 @@ abstract final class AppColors {
       dangerBackground = Color(0xFFFDEDEB);
 }
 
-ThemeData buildTheme() => ThemeData(
-  useMaterial3: true,
-  pageTransitionsTheme: const PageTransitionsTheme(
-    builders: {
-      TargetPlatform.android: QParkPageTransitions(),
-      TargetPlatform.windows: QParkPageTransitions(),
-      TargetPlatform.linux: QParkPageTransitions(),
-      TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
-      TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-    },
-  ),
-  colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary).copyWith(
-    primary: AppColors.primary,
-    secondary: AppColors.accent,
-    surface: AppColors.surface,
-    onSurface: AppColors.text,
-    error: AppColors.danger,
-  ),
-  textTheme: const TextTheme(
-    headlineSmall: TextStyle(
-      fontSize: 24,
-      fontWeight: FontWeight.w700,
-      letterSpacing: -.4,
+const List<(String, int)> qparkThemeColorOptions = [
+  ('Hijau QPark', 0xFF166534),
+  ('Emerald', 0xFF059669),
+  ('Teal', 0xFF0F766E),
+  ('Biru Laut', 0xFF1D4ED8),
+  ('Indigo', 0xFF4338CA),
+  ('Ungu', 0xFF7E22CE),
+  ('Oranye', 0xFFC2410C),
+  ('Crimson', 0xFFBE123C),
+];
+
+ThemeData buildTheme({
+  Color seedColor = AppColors.primary,
+  Brightness brightness = Brightness.light,
+}) {
+  final isDark = brightness == Brightness.dark;
+  final surface = isDark ? const Color(0xFF182026) : AppColors.surface;
+  final background = isDark ? const Color(0xFF0F1419) : AppColors.background;
+  final border = isDark ? const Color(0xFF2B3640) : AppColors.border;
+  final onSurface = isDark ? const Color(0xFFF2F4F7) : AppColors.text;
+  final indicator = isDark
+      ? seedColor.withValues(alpha: 0.25)
+      : Color.alphaBlend(seedColor.withValues(alpha: 0.14), Colors.white);
+  return ThemeData(
+    useMaterial3: true,
+    brightness: brightness,
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: QParkPageTransitions(),
+        TargetPlatform.windows: QParkPageTransitions(),
+        TargetPlatform.linux: QParkPageTransitions(),
+        TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+      },
     ),
-    titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-    titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-    bodyMedium: TextStyle(fontSize: 14, height: 1.45),
-    bodySmall: TextStyle(fontSize: 12, height: 1.4, color: AppColors.muted),
-  ),
-  navigationBarTheme: const NavigationBarThemeData(
-    backgroundColor: AppColors.surface,
-    surfaceTintColor: Colors.transparent,
-    indicatorColor: AppColors.successBackground,
-    elevation: 0,
-  ),
-  dialogTheme: DialogThemeData(
-    backgroundColor: AppColors.surface,
-    surfaceTintColor: Colors.transparent,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-  ),
-  scaffoldBackgroundColor: AppColors.background,
-  appBarTheme: const AppBarTheme(
-    elevation: 0,
-    scrolledUnderElevation: 0,
-    backgroundColor: AppColors.surface,
-    foregroundColor: AppColors.text,
-    surfaceTintColor: AppColors.surface,
-  ),
-  inputDecorationTheme: InputDecorationTheme(
-    filled: true,
-    fillColor: AppColors.surface,
-    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: AppColors.primary, width: 2),
+    colorScheme:
+        ColorScheme.fromSeed(
+          seedColor: seedColor,
+          brightness: brightness,
+        ).copyWith(
+          primary: seedColor,
+          secondary: seedColor,
+          surface: surface,
+          onSurface: onSurface,
+          error: AppColors.danger,
+        ),
+    textTheme: TextTheme(
+      headlineSmall: TextStyle(
+        fontSize: 24,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -.4,
+        color: onSurface,
+      ),
+      titleLarge: TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        color: onSurface,
+      ),
+      titleMedium: TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        color: onSurface,
+      ),
+      bodyMedium: TextStyle(fontSize: 14, height: 1.45, color: onSurface),
+      bodySmall: const TextStyle(
+        fontSize: 12,
+        height: 1.4,
+        color: AppColors.muted,
+      ),
     ),
-    enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: AppColors.border),
+    navigationBarTheme: NavigationBarThemeData(
+      backgroundColor: surface,
+      surfaceTintColor: Colors.transparent,
+      indicatorColor: indicator,
+      elevation: 0,
     ),
-  ),
-  filledButtonTheme: FilledButtonThemeData(
-    style: FilledButton.styleFrom(
-      minimumSize: const Size(48, 48),
-      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    dialogTheme: DialogThemeData(
+      backgroundColor: surface,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     ),
-  ),
-  outlinedButtonTheme: OutlinedButtonThemeData(
-    style: OutlinedButton.styleFrom(
-      minimumSize: const Size(48, 48),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    scaffoldBackgroundColor: background,
+    appBarTheme: AppBarTheme(
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      backgroundColor: surface,
+      foregroundColor: onSurface,
+      surfaceTintColor: surface,
     ),
-  ),
-  textButtonTheme: TextButtonThemeData(
-    style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
-  ),
-  cardTheme: CardThemeData(
-    color: AppColors.surface,
-    elevation: 0,
-    margin: EdgeInsets.zero,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(18),
-      side: const BorderSide(color: AppColors.border),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: surface,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: seedColor, width: 2),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: border),
+      ),
     ),
-  ),
-  dividerTheme: const DividerThemeData(color: AppColors.border),
-  snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
-);
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        backgroundColor: seedColor,
+        foregroundColor: Colors.white,
+        minimumSize: const Size(48, 48),
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(48, 48),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+    ),
+    cardTheme: CardThemeData(
+      color: surface,
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: border),
+      ),
+    ),
+    dividerTheme: DividerThemeData(color: border),
+    snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
+  );
+}
+
 String money(int? value) =>
     'Rp${NumberFormat.decimalPattern('id_ID').format(value ?? 0)}';
 String durationText(Duration d) =>

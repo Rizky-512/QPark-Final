@@ -10,10 +10,10 @@ import 'pages/account_page.dart';
 import 'pages/activity_page.dart';
 import 'pages/admin_page.dart';
 import 'pages/analytics_page.dart';
-import 'pages/customer_login_page.dart';
 import 'pages/dashboard_page.dart';
 import 'pages/driver_page.dart';
 import 'pages/entry_page.dart';
+import 'pages/ev_booking_page.dart';
 import 'pages/exit_page.dart';
 import 'pages/login_page.dart';
 import 'pages/qr_pay_page.dart';
@@ -40,6 +40,10 @@ class _QParkAppState extends State<QParkApp> with WidgetsBindingObserver {
   Future<RemoteService> initialize() async {
     final value = await widget.initialize();
     service = value;
+    // Open directly into core app without requiring Google login.
+    if (!value.signedIn) {
+      value.enterCustomerDemo();
+    }
     value.setForeground(
       WidgetsBinding.instance.lifecycleState == null ||
           WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed,
@@ -60,31 +64,47 @@ class _QParkAppState extends State<QParkApp> with WidgetsBindingObserver {
     service?.setForeground(state == AppLifecycleState.resumed);
   }
 
+  Widget _buildApp(BuildContext context, RemoteService? s, Widget home) {
+    final seedColor = s != null
+        ? Color(s.activeThemeColorValue)
+        : AppColors.primary;
+    final brightness = (s?.activeDarkMode ?? false)
+        ? Brightness.dark
+        : Brightness.light;
+    return MaterialApp(
+      builder: (context, child) => AppConfig.environment == 'test'
+          ? Banner(
+              message: 'PENGUJIAN',
+              location: BannerLocation.topEnd,
+              child: child!,
+            )
+          : child!,
+      title: 'QPark · Parkir lebih mudah',
+      debugShowCheckedModeBanner: false,
+      theme: buildTheme(seedColor: seedColor, brightness: brightness),
+      locale: const Locale('id', 'ID'),
+      supportedLocales: const [Locale('id', 'ID')],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      home: home,
+    );
+  }
+
   @override
-  Widget build(BuildContext context) => MaterialApp(
-    builder: (context, child) => AppConfig.environment == 'test'
-        ? Banner(
-            message: 'PENGUJIAN',
-            location: BannerLocation.topEnd,
-            child: child!,
-          )
-        : child!,
-    title: 'QPark · Parkir lebih mudah',
-    debugShowCheckedModeBanner: false,
-    theme: buildTheme(),
-    locale: const Locale('id', 'ID'),
-    supportedLocales: const [Locale('id', 'ID')],
-    localizationsDelegates: GlobalMaterialLocalizations.delegates,
-    home: FutureBuilder<RemoteService>(
-      future: future,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-        if (snapshot.hasError) {
-          return Scaffold(
+  Widget build(BuildContext context) => FutureBuilder<RemoteService>(
+    future: future,
+    builder: (context, snapshot) {
+      if (snapshot.connectionState != ConnectionState.done) {
+        return _buildApp(
+          context,
+          null,
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
+        );
+      }
+      if (snapshot.hasError) {
+        return _buildApp(
+          context,
+          null,
+          Scaffold(
             body: Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -103,21 +123,19 @@ class _QParkAppState extends State<QParkApp> with WidgetsBindingObserver {
                 ),
               ),
             ),
-          );
-        }
-        return ListenableBuilder(
-          listenable: snapshot.data!,
-          builder: (context, _) => !snapshot.data!.signedIn
-              ? CustomerLoginPage(service: snapshot.data!)
-              : _Shell(
-                  key: ValueKey(
-                    '${snapshot.data!.role}:${snapshot.data!.operationOwner}',
-                  ),
-                  service: snapshot.data!,
-                ),
+          ),
         );
-      },
-    ),
+      }
+      final s = snapshot.data!;
+      return ListenableBuilder(
+        listenable: s,
+        builder: (context, _) => _buildApp(
+          context,
+          s,
+          _Shell(key: ValueKey('${s.role}:${s.operationOwner}'), service: s),
+        ),
+      );
+    },
   );
 }
 
@@ -151,6 +169,19 @@ class _ShellState extends State<_Shell> {
           service: widget.service,
           onOpenWallet: () => navigate(2),
           onOpenActivity: () => navigate(1),
+        ),
+      ),
+    );
+  }
+
+  void openEvBook([String? locationId]) {
+    FocusManager.instance.primaryFocus?.unfocus();
+    Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EvBookingPage(
+          service: widget.service,
+          initialLocationId: locationId,
         ),
       ),
     );
@@ -199,14 +230,18 @@ class _ShellState extends State<_Shell> {
       context,
       title: 'Keluar dari akun?',
       body:
-          'Kembali ke halaman login. Daftar nopol pada perangkat tetap tersimpan.',
+          'Kembali ke mode pengguna langsung. Daftar nopol pada perangkat tetap tersimpan.',
       action: 'Keluar akun',
     )) {
       await widget.service.logout();
+      if (!widget.service.signedIn && !widget.service.disposed) {
+        widget.service.enterCustomerDemo();
+      }
     }
   }
 
-  Widget _customerBottomBar() {
+  Widget _customerBottomBar(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
     Widget tabItem(int tabIndex, IconData icon, String label) {
       final selected = index == tabIndex;
       return Expanded(
@@ -222,7 +257,7 @@ class _ShellState extends State<_Shell> {
                 Icon(
                   icon,
                   size: 22,
-                  color: selected ? AppColors.primary : AppColors.muted,
+                  color: selected ? primary : AppColors.muted,
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -232,7 +267,7 @@ class _ShellState extends State<_Shell> {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
-                    color: selected ? AppColors.primary : AppColors.muted,
+                    color: selected ? primary : AppColors.muted,
                   ),
                 ),
               ],
@@ -245,17 +280,18 @@ class _ShellState extends State<_Shell> {
     return BottomAppBar(
       shape: const CircularNotchedRectangle(),
       notchMargin: 8,
-      color: AppColors.surface,
-      elevation: 8,
+      color: Theme.of(context).colorScheme.surface,
+      surfaceTintColor: Colors.transparent,
+      elevation: 10,
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       height: 64,
       child: Row(
         children: [
-          tabItem(0, Icons.home_rounded, 'Home'),
-          tabItem(1, Icons.receipt_long_rounded, 'Aktivitas'),
-          const SizedBox(width: 64),
-          tabItem(2, Icons.account_balance_wallet_rounded, 'Dompet'),
-          tabItem(3, Icons.person_rounded, 'Akun'),
+          tabItem(0, Icons.home_rounded, 'HOME'),
+          tabItem(1, Icons.receipt_long_rounded, 'AKTIVITAS'),
+          const SizedBox(width: 68),
+          tabItem(2, Icons.account_balance_wallet_rounded, 'DOMPET'),
+          tabItem(3, Icons.person_rounded, 'AKUN'),
         ],
       ),
     );
@@ -263,11 +299,14 @@ class _ShellState extends State<_Shell> {
 
   Widget sidebar() {
     final service = widget.service;
+    final primary = Theme.of(context).colorScheme.primary;
     return Container(
       width: 235,
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        border: Border(right: BorderSide(color: AppColors.border)),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        border: Border(
+          right: BorderSide(color: Theme.of(context).dividerColor),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -276,17 +315,13 @@ class _ShellState extends State<_Shell> {
             padding: const EdgeInsets.all(24),
             child: Row(
               children: [
-                const Icon(
-                  Icons.local_parking_rounded,
-                  size: 34,
-                  color: AppColors.primary,
-                ),
+                Icon(Icons.local_parking_rounded, size: 34, color: primary),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'QPark',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      color: AppColors.primary,
+                      color: primary,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
@@ -328,14 +363,14 @@ class _ShellState extends State<_Shell> {
                         vertical: service.admin ? 2 : 4,
                       ),
                       child: Material(
-                        color: AppColors.surface,
+                        color: Theme.of(context).colorScheme.surface,
                         borderRadius: BorderRadius.circular(12),
                         child: ListTile(
                           key: Key('nav-${d.$1}'),
                           dense: service.admin,
                           selected: index == d.$1,
-                          selectedColor: AppColors.primary,
-                          selectedTileColor: AppColors.successBackground,
+                          selectedColor: primary,
+                          selectedTileColor: primary.withValues(alpha: 0.12),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -365,7 +400,7 @@ class _ShellState extends State<_Shell> {
                 Text(
                   service.username ??
                       service.customerIdentity?.displayName ??
-                      'Customer demo',
+                      'Pengguna QPark',
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 4),
@@ -389,146 +424,159 @@ class _ShellState extends State<_Shell> {
   @override
   Widget build(BuildContext context) {
     final service = widget.service;
+    final primary = Theme.of(context).colorScheme.primary;
     final args = RemoteArgs(
       widget.service,
       navigate,
       openCheckout: openCheckout,
       openQrPay: openQrPay,
+      openEvBook: openEvBook,
     );
-    final pages = service.officer
-        ? <Widget>[
-            DashboardPage(args: args),
-            EntryPage(args: args),
-            ExitPage(
-              args: args,
-              sessionId: checkoutSessionId,
-              requestId: checkoutRequest,
-              active: index == 2,
-            ),
-            RemoteHistoryPage(args: args, active: index == 3),
-            if (service.admin) AdminPage(args: args),
-            if (service.admin) AnalyticsPage(args: args, active: index == 5),
-          ]
-        : <Widget>[
-            DriverPage(args: args, active: index == 0),
-            ActivityPage(args: args, active: index == 1),
-            WalletPage(args: args, active: index == 2),
-            AccountPage(args: args, onStaffLogin: login, onLogout: logout),
-          ];
 
     return LayoutBuilder(
       builder: (context, bounds) {
         final wide = bounds.maxWidth >= 1000;
+        final pages = service.officer
+            ? <Widget>[
+                DashboardPage(args: args),
+                EntryPage(args: args),
+                ExitPage(
+                  args: args,
+                  sessionId: checkoutSessionId,
+                  requestId: checkoutRequest,
+                  active: index == 2,
+                ),
+                RemoteHistoryPage(args: args, active: index == 3),
+                if (service.admin) AdminPage(args: args),
+                if (service.admin)
+                  AnalyticsPage(args: args, active: index == 5),
+              ]
+            : <Widget>[
+                DriverPage(
+                  args: args,
+                  active: index == 0,
+                  fullBleed: !wide,
+                  onStaffLogin: login,
+                ),
+                ActivityPage(args: args, active: index == 1),
+                WalletPage(args: args, active: index == 2),
+                AccountPage(args: args, onStaffLogin: login, onLogout: logout),
+              ];
         final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
         final showCustomerFab = !service.officer && !wide && !keyboardOpen;
+        final fullBleedHome = !service.officer && !wide && index == 0;
+
         return Scaffold(
-          appBar: AppBar(
-            leading: !wide && index >= 4
-                ? BackButton(
-                    key: const Key('back-operations'),
-                    onPressed: () => navigate(0),
-                  )
-                : null,
-            title: Text(
-              wide
-                  ? destinations[index].$1
-                  : 'QPark · ${destinations[index].$1}',
-              style: const TextStyle(fontWeight: FontWeight.w800),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            actions: [
-              if (service.superadmin && service.locations.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(right: 4),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      key: const Key('superadmin-location-switch'),
-                      value:
-                          service.locations.any(
-                            (l) => l['id'] == service.selectedLocationId,
-                          )
-                          ? service.selectedLocationId
-                          : service.locations.first['id'] as String,
-                      items: service.locations
-                          .map(
-                            (l) => DropdownMenuItem(
-                              value: l['id'] as String,
-                              child: Text(
-                                l['name'] as String,
-                                overflow: TextOverflow.ellipsis,
+          appBar: fullBleedHome
+              ? null
+              : AppBar(
+                  leading: !wide && index >= 4
+                      ? BackButton(
+                          key: const Key('back-operations'),
+                          onPressed: () => navigate(0),
+                        )
+                      : null,
+                  title: Text(
+                    wide
+                        ? destinations[index].$1
+                        : 'QPark · ${destinations[index].$1}',
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  actions: [
+                    if (service.superadmin && service.locations.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 4),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            key: const Key('superadmin-location-switch'),
+                            value:
+                                service.locations.any(
+                                  (l) => l['id'] == service.selectedLocationId,
+                                )
+                                ? service.selectedLocationId
+                                : service.locations.first['id'] as String,
+                            items: service.locations
+                                .map(
+                                  (l) => DropdownMenuItem(
+                                    value: l['id'] as String,
+                                    child: Text(
+                                      l['name'] as String,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (v) => service.selectLocation(v),
+                          ),
+                        ),
+                      ),
+                    if (service.admin && !wide)
+                      PopupMenuButton<int>(
+                        key: const Key('admin-menu'),
+                        tooltip: 'Menu pengelola',
+                        icon: const Icon(Icons.admin_panel_settings_outlined),
+                        onSelected: navigate,
+                        itemBuilder: (_) => [
+                          for (final i in [4, 5])
+                            PopupMenuItem(
+                              value: i,
+                              key: Key('nav-$i'),
+                              child: ListTile(
+                                leading: Icon(destinations[i].$2),
+                                title: Text(destinations[i].$1),
                               ),
                             ),
-                          )
-                          .toList(),
-                      onChanged: (v) => service.selectLocation(v),
-                    ),
-                  ),
-                ),
-              if (service.admin && !wide)
-                PopupMenuButton<int>(
-                  key: const Key('admin-menu'),
-                  tooltip: 'Menu pengelola',
-                  icon: const Icon(Icons.admin_panel_settings_outlined),
-                  onSelected: navigate,
-                  itemBuilder: (_) => [
-                    for (final i in [4, 5])
-                      PopupMenuItem(
-                        value: i,
-                        key: Key('nav-$i'),
-                        child: ListTile(
-                          leading: Icon(destinations[i].$2),
-                          title: Text(destinations[i].$1),
-                        ),
-                      ),
-                  ],
-                ),
-              IconButton(
-                key: const Key('logout'),
-                tooltip: 'Keluar akun',
-                onPressed: logout,
-                icon: const Icon(Icons.logout),
-              ),
-              if (!service.officer && wide)
-                TextButton.icon(
-                  key: const Key('officer-login'),
-                  onPressed: login,
-                  icon: const Icon(Icons.badge_outlined),
-                  label: const Text('Login pengelola / petugas'),
-                ),
-              if (!service.officer && !wide)
-                IconButton(
-                  key: const Key('officer-login'),
-                  tooltip: 'Login pengelola / petugas',
-                  onPressed: login,
-                  icon: const Icon(Icons.badge_outlined),
-                ),
-              if (service.officer)
-                IconButton(
-                  tooltip: 'Status koneksi',
-                  icon: const Icon(Icons.monitor_heart_outlined),
-                  onPressed: () {
-                    final m = service.repository.metrics;
-                    showDialog<void>(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text('Status koneksi sesi ini'),
-                        content: Text(
-                          'Peran: ${service.roleLabel}\nLokasi: ${service.staffLocationName ?? 'Semua lokasi'}\nPermintaan: ${m.requests}\nGagal: ${m.failures}\nTimeout: ${m.timeouts}\np95 (100 terakhir): ${m.p95Milliseconds} ms\nGagal sinkron berturut-turut: ${service.consecutiveFailures}\nInterval sinkron: ${service.pollDelay.inSeconds} detik\nKode error terakhir: ${m.lastErrorCode ?? "?"}',
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: const Text('Tutup'),
-                          ),
                         ],
                       ),
-                    );
-                  },
+                    if (service.officer || service.canCustomizeAppearance)
+                      IconButton(
+                        key: const Key('logout'),
+                        tooltip: 'Keluar akun',
+                        onPressed: logout,
+                        icon: const Icon(Icons.logout),
+                      ),
+                    if (!service.officer && wide)
+                      TextButton.icon(
+                        key: const Key('officer-login'),
+                        onPressed: login,
+                        icon: const Icon(Icons.badge_outlined),
+                        label: const Text('Login pengelola / petugas'),
+                      ),
+                    if (!service.officer && !wide)
+                      IconButton(
+                        key: const Key('officer-login'),
+                        tooltip: 'Login pengelola / petugas',
+                        onPressed: login,
+                        icon: const Icon(Icons.badge_outlined),
+                      ),
+                    if (service.officer)
+                      IconButton(
+                        tooltip: 'Status koneksi',
+                        icon: const Icon(Icons.monitor_heart_outlined),
+                        onPressed: () {
+                          final m = service.repository.metrics;
+                          showDialog<void>(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text('Status koneksi sesi ini'),
+                              content: Text(
+                                'Peran: ${service.roleLabel}\nLokasi: ${service.staffLocationName ?? 'Semua lokasi'}\nPermintaan: ${m.requests}\nGagal: ${m.failures}\nTimeout: ${m.timeouts}\np95 (100 terakhir): ${m.p95Milliseconds} ms\nGagal sinkron berturut-turut: ${service.consecutiveFailures}\nInterval sinkron: ${service.pollDelay.inSeconds} detik\nKode error terakhir: ${m.lastErrorCode ?? "?"}',
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  child: const Text('Tutup'),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    const SizedBox(width: 8),
+                  ],
                 ),
-              const SizedBox(width: 8),
-            ],
-          ),
           body: Row(
             children: [
               if (wide) sidebar(),
@@ -543,6 +591,31 @@ class _ShellState extends State<_Shell> {
                             )
                           : const SizedBox.shrink(),
                     ),
+                    if (service.sessionNotice != null)
+                      Container(
+                        width: double.infinity,
+                        color: AppColors.warningBackground,
+                        padding: const EdgeInsets.all(12),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                service.sessionNotice!,
+                                style: const TextStyle(
+                                  color: AppColors.warning,
+                                ),
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                service.sessionNotice = null;
+                                service.emit();
+                              },
+                              child: const Text('Tutup'),
+                            ),
+                          ],
+                        ),
+                      ),
                     if (!service.online)
                       Container(
                         width: double.infinity,
@@ -628,7 +701,10 @@ class _ShellState extends State<_Shell> {
                                   key: PageStorageKey(
                                     'page-${p.$1}-${service.officer}',
                                   ),
-                                  padding: EdgeInsets.all(wide ? 32 : 16),
+                                  padding:
+                                      (!service.officer && !wide && p.$1 == 0)
+                                      ? EdgeInsets.zero
+                                      : EdgeInsets.all(wide ? 32 : 16),
                                   child: Align(
                                     alignment: Alignment.topCenter,
                                     child: ConstrainedBox(
@@ -652,10 +728,12 @@ class _ShellState extends State<_Shell> {
                         key: const Key('customer-action-dock'),
                         width: double.infinity,
                         padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-                        decoration: const BoxDecoration(
-                          color: AppColors.surface,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surface,
                           border: Border(
-                            top: BorderSide(color: AppColors.border),
+                            top: BorderSide(
+                              color: Theme.of(context).dividerColor,
+                            ),
                           ),
                         ),
                         child: SafeArea(
@@ -683,7 +761,7 @@ class _ShellState extends State<_Shell> {
               ? FloatingActionButton(
                   key: const Key('fab-scan-qr'),
                   tooltip: 'Scan QR Bayar',
-                  backgroundColor: AppColors.primary,
+                  backgroundColor: primary,
                   foregroundColor: Colors.white,
                   elevation: 4,
                   shape: const CircleBorder(),
@@ -706,7 +784,7 @@ class _ShellState extends State<_Shell> {
           bottomNavigationBar: wide || keyboardOpen
               ? null
               : !service.officer
-              ? _customerBottomBar()
+              ? _customerBottomBar(context)
               : index >= 4
               ? null
               : NavigationBar(

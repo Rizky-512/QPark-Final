@@ -289,7 +289,7 @@ void main() {
       await service.sync();
       await settle(tester);
       expect(find.textContaining('Sesi petugas berakhir.'), findsOneWidget);
-      expect(find.byKey(const Key('nav-1')), findsNothing);
+      expect(find.text('Catat kendaraan masuk'), findsNothing);
       expect(service.officer, isFalse);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());

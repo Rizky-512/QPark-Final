@@ -30,6 +30,10 @@ class CustomerAccessMixin:
         loc_wallet = wallet_dispatch(self, db, method, path, query, data, token, now, owner)
         if loc_wallet is not None:
             return loc_wallet
+        from .ev_promos import ev_promo_dispatch
+        ev_promo = ev_promo_dispatch(self, db, method, path, query, data, token, now, owner)
+        if ev_promo is not None:
+            return ev_promo
         from .vehicle_categories import category_request
         category = category_request(self, db, method, path, query, data, token, now, owner)
         if category is not None:

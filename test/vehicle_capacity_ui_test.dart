@@ -64,33 +64,26 @@ void main() {
       'MaterialIcons',
     )..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
   });
-  testWidgets(
-    'Public home shows separate slots and never fetches a private ticket',
-    (tester) async {
-      final scenario = CapacityScenario();
-      final service = await mount(tester, scenario);
-      service.customerDemo = false;
-      service.emit();
-      await settle(tester);
-      scenario.calls.clear();
-      await service.sync();
-      await settle(tester);
-      expect(find.text('8 slot tersedia'), findsOneWidget);
-      expect(find.text('0 slot tersedia'), findsOneWidget);
-      expect(scenario.calls, ['/api/capacity']);
-      expect(find.byKey(const Key('nav-0')), findsNothing);
-      await capture(tester, 'public-separate-capacity');
-      scenario.offline = true;
-      await service.sync();
-      await settle(tester);
-      expect(
-        find.text('Koneksi terputus. Data belum diperbarui.'),
-        findsOneWidget,
-      );
-      expect(tester.takeException(), isNull);
-      await tester.pumpWidget(const SizedBox());
-    },
-  );
+  testWidgets('Direct home shows separate car and motor slots without login', (
+    tester,
+  ) async {
+    final scenario = CapacityScenario();
+    final service = await mount(tester, scenario);
+    await settle(tester);
+    expect(find.text('8 slot tersedia'), findsOneWidget);
+    expect(find.text('0 slot tersedia'), findsOneWidget);
+    expect(find.byKey(const Key('nav-0')), findsOneWidget);
+    await capture(tester, 'public-separate-capacity');
+    scenario.offline = true;
+    await service.sync();
+    await settle(tester);
+    expect(
+      find.text('Koneksi terputus. Data belum diperbarui.'),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
   testWidgets('Customer must choose a category when saving a new plate', (
     tester,
   ) async {

@@ -31,6 +31,8 @@ class _QrPayPageState extends State<QrPayPage> {
   Json? inspectedInvoice;
   Json? inspectedSession;
   int? inspectedBalance;
+  List<Json> inspectedPromos = [];
+  String? selectedPromoId;
   String? error;
   MobileScannerController? controller;
 
@@ -62,6 +64,8 @@ class _QrPayPageState extends State<QrPayPage> {
         inspectedInvoice = r['invoice'] as Json?;
         inspectedSession = r['session'] as Json?;
         inspectedBalance = (r['balance'] as num?)?.toInt();
+        inspectedPromos = ((r['promos'] as List?) ?? const []).cast<Json>();
+        selectedPromoId = null;
         scannerActive = false;
       });
     } catch (e) {
@@ -79,7 +83,10 @@ class _QrPayPageState extends State<QrPayPage> {
       error = null;
     });
     try {
-      await widget.service.payWithWallet(invoiceId: inv['id'] as String);
+      await widget.service.payWithWallet(
+        invoiceId: inv['id'] as String,
+        promoId: selectedPromoId,
+      );
       if (!mounted) return;
       showMessage(
         context,
@@ -99,7 +106,19 @@ class _QrPayPageState extends State<QrPayPage> {
     final inv = inspectedInvoice;
     final sess = inspectedSession;
     final balance = inspectedBalance ?? widget.service.walletBalance;
-    final amount = (inv?['amount'] as num?)?.toInt() ?? 0;
+    final rawAmount = (inv?['amount'] as num?)?.toInt() ?? 0;
+    final chosenPromo = inspectedPromos
+        .where((p) => p['id'] == selectedPromoId)
+        .firstOrNull;
+    int discount = 0;
+    if (chosenPromo != null) {
+      final val = (chosenPromo['discount_value'] as num?)?.toInt() ?? 0;
+      discount = chosenPromo['discount_type'] == 'PERCENT'
+          ? (rawAmount * val) ~/ 100
+          : val;
+      discount = discount.clamp(0, rawAmount);
+    }
+    final amount = (rawAmount - discount).clamp(0, rawAmount);
     final enough = balance >= amount;
 
     return Scaffold(
@@ -260,7 +279,43 @@ class _QrPayPageState extends State<QrPayPage> {
                                 : 'Mobil',
                           ),
                           _row('Waktu Masuk', wib(sess?['entered_at'])),
-                          _row('Total Tagihan', money(amount), bold: true),
+                          _row('Tagihan Awal', money(rawAmount)),
+                          if (inspectedPromos.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            DropdownButtonFormField<String?>(
+                              key: ValueKey('qr-promo-$selectedPromoId'),
+                              initialValue: selectedPromoId,
+                              decoration: const InputDecoration(
+                                labelText: 'Gunakan Promo Aktif (Opsional)',
+                              ),
+                              items: [
+                                const DropdownMenuItem<String?>(
+                                  value: null,
+                                  child: Text('Tanpa promo'),
+                                ),
+                                ...inspectedPromos.map(
+                                  (p) => DropdownMenuItem<String?>(
+                                    value: p['id'] as String,
+                                    child: Text(
+                                      '${p['title']} (${p['discount_type'] == 'PERCENT' ? '${p['discount_value']}%' : money((p['discount_value'] as num).toInt())})',
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                              onChanged: busy
+                                  ? null
+                                  : (v) => setState(() => selectedPromoId = v),
+                            ),
+                            const SizedBox(height: 6),
+                          ],
+                          if (discount > 0)
+                            _row(
+                              'Potongan Promo',
+                              '-${money(discount)}',
+                              valueColor: AppColors.primary,
+                            ),
+                          _row('Total Bayar', money(amount), bold: true),
                           const Divider(height: 24),
                           _row(
                             'Saldo Dompet QPark',
