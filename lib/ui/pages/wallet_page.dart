@@ -62,7 +62,7 @@ class _WalletPageState extends State<WalletPage> {
     final txs = service.walletTransactions;
     final primary = Theme.of(context).colorScheme.primary;
     final darkShade = Color.lerp(primary, Colors.black, 0.2)!;
-    return Column(
+    final balanceAndTopup = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Container(
@@ -217,84 +217,107 @@ class _WalletPageState extends State<WalletPage> {
             ],
           ),
         ),
-        const SizedBox(height: 20),
-        SurfaceCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+      ],
+    );
+
+    final historyCard = SurfaceCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Riwayat Mutasi',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: 'Muat ulang mutasi',
-                    onPressed: busy
-                        ? null
-                        : () => service.refreshWallet().catchError((_) {}),
-                    icon: const Icon(Icons.refresh),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              if (txs.isEmpty)
-                const EmptyState(
-                  title: 'Belum ada transaksi dompet',
-                  description:
-                      'Lakukan top up simulasi atau bayar tagihan parkir untuk melihat mutasi.',
+              Expanded(
+                child: Text(
+                  'Riwayat Mutasi',
+                  style: Theme.of(context).textTheme.titleLarge,
                 ),
-              ...txs.map((tx) {
-                final isTopup = tx['kind'] == 'TOPUP';
-                final amount = (tx['amount'] as num?)?.toInt() ?? 0;
-                final after = (tx['balance_after'] as num?)?.toInt() ?? 0;
-                return Column(
-                  children: [
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: CircleAvatar(
-                        backgroundColor: isTopup
-                            ? AppColors.successBackground
-                            : AppColors.dangerBackground,
-                        child: Icon(
-                          isTopup
-                              ? Icons.south_west_rounded
-                              : Icons.north_east_rounded,
-                          color: isTopup ? AppColors.primary : AppColors.danger,
-                          size: 20,
-                        ),
-                      ),
-                      title: Text(
-                        tx['description'] as String? ??
-                            (isTopup ? 'Top up saldo' : 'Pembayaran parkir'),
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      subtitle: Text(
-                        '${wib(tx['created_at'])} · Saldo ${money(after)}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.muted,
-                        ),
-                      ),
-                      trailing: Text(
-                        '${isTopup ? '+' : '-'}${money(amount)}',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          color: isTopup ? AppColors.primary : AppColors.danger,
-                        ),
-                      ),
-                    ),
-                    const Divider(height: 1),
-                  ],
-                );
-              }),
+              ),
+              IconButton(
+                tooltip: 'Muat ulang mutasi',
+                onPressed: busy
+                    ? null
+                    : () => service.refreshWallet().catchError((_) {}),
+                icon: const Icon(Icons.refresh),
+              ),
             ],
           ),
-        ),
-        const SizedBox(height: 24),
-      ],
+          const SizedBox(height: 8),
+          if (txs.isEmpty)
+            const EmptyState(
+              title: 'Belum ada transaksi dompet',
+              description:
+                  'Lakukan top up simulasi atau bayar tagihan parkir untuk melihat mutasi.',
+            ),
+          ...txs.map((tx) {
+            final isTopup = tx['kind'] == 'TOPUP';
+            final amount = (tx['amount'] as num?)?.toInt() ?? 0;
+            final after = (tx['balance_after'] as num?)?.toInt() ?? 0;
+            return Column(
+              children: [
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: CircleAvatar(
+                    backgroundColor: isTopup
+                        ? AppColors.successBackground
+                        : AppColors.dangerBackground,
+                    child: Icon(
+                      isTopup
+                          ? Icons.south_west_rounded
+                          : Icons.north_east_rounded,
+                      color: isTopup ? AppColors.primary : AppColors.danger,
+                      size: 20,
+                    ),
+                  ),
+                  title: Text(
+                    tx['description'] as String? ??
+                        (isTopup ? 'Top up saldo' : 'Pembayaran parkir'),
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(
+                    '${wib(tx['created_at'])} · Saldo ${money(after)}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.muted,
+                    ),
+                  ),
+                  trailing: Text(
+                    '${isTopup ? '+' : '-'}${money(amount)}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: isTopup ? AppColors.primary : AppColors.danger,
+                    ),
+                  ),
+                ),
+                const Divider(height: 1),
+              ],
+            );
+          }),
+        ],
+      ),
+    );
+
+    return LayoutBuilder(
+      builder: (context, bounds) {
+        if (bounds.maxWidth >= 820) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(flex: 5, child: balanceAndTopup),
+              const SizedBox(width: 24),
+              Expanded(flex: 6, child: historyCard),
+            ],
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            balanceAndTopup,
+            const SizedBox(height: 20),
+            historyCard,
+            const SizedBox(height: 24),
+          ],
+        );
+      },
     );
   }
 }

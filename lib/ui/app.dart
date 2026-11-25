@@ -332,11 +332,22 @@ class _ShellState extends State<_Shell> {
           if (!service.officer)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: FilledButton.icon(
-                key: const Key('fab-scan-qr'),
-                onPressed: openQrPay,
-                icon: const Icon(Icons.qr_code_scanner_rounded),
-                label: const Text('Scan QR Bayar'),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  FilledButton.icon(
+                    key: const Key('fab-scan-qr'),
+                    onPressed: openQrPay,
+                    icon: const Icon(Icons.qr_code_scanner_rounded),
+                    label: const Text('Scan QR Bayar'),
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: () => openEvBook(),
+                    icon: const Icon(Icons.ev_station_rounded),
+                    label: const Text('Book EV Charging'),
+                  ),
+                ],
               ),
             ),
           Padding(

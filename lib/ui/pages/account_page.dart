@@ -94,7 +94,7 @@ class _AccountPageState extends State<AccountPage> {
         : 'Akses langsung tanpa login · Masuk Google untuk tema & foto profil';
     final primary = Theme.of(context).colorScheme.primary;
 
-    return Column(
+    final leftColumn = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SurfaceCard(
@@ -254,7 +254,12 @@ class _AccountPageState extends State<AccountPage> {
             ],
           ),
         ),
-        const SizedBox(height: 16),
+      ],
+    );
+
+    final rightColumn = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
         SurfaceCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -398,8 +403,31 @@ class _AccountPageState extends State<AccountPage> {
             ],
           ),
         ),
-        const SizedBox(height: 24),
       ],
+    );
+
+    return LayoutBuilder(
+      builder: (context, bounds) {
+        if (bounds.maxWidth >= 820) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(flex: 5, child: leftColumn),
+              const SizedBox(width: 24),
+              Expanded(flex: 6, child: rightColumn),
+            ],
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            leftColumn,
+            const SizedBox(height: 16),
+            rightColumn,
+            const SizedBox(height: 24),
+          ],
+        );
+      },
     );
   }
 }

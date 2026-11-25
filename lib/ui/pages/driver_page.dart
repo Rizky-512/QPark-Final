@@ -929,6 +929,640 @@ class _DriverPageState extends State<DriverPage> {
     );
   }
 
+  Widget _desktopHeroBanner(BuildContext context, RemoteService service) {
+    final primary = Theme.of(context).colorScheme.primary;
+    final darkShade = Color.lerp(primary, Colors.black, 0.24)!;
+    final greeting = service.customerIdentity?.displayName ?? 'Pengguna QPark';
+    final hasActiveTicket =
+        service.ticket != null && service.ticket!['state'] != 'COMPLETED';
+    final activeEvCount = service.evBookings
+        .where((b) => b['status'] == 'ACTIVE')
+        .length;
+
+    Widget actionPill(
+      Key key,
+      String label,
+      IconData icon,
+      VoidCallback onTap,
+    ) {
+      return Material(
+        color: Colors.white.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          key: key,
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, color: Colors.white, size: 18),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [darkShade, primary],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            flex: 7,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.location_on_rounded,
+                            color: Colors.white,
+                            size: 14,
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            'QPARK · SMART PARKING & EV',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 11,
+                              letterSpacing: 1.0,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF59E0B),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        hasActiveTicket
+                            ? 'Tiket Aktif'
+                            : '$activeEvCount EV Aktif',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'Halo, $greeting',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Parkir lebih mudah',
+                  style: TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+                const SizedBox(height: 18),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    actionPill(
+                      const Key('quick-book-ev'),
+                      'Book EV',
+                      Icons.ev_station_rounded,
+                      () => widget.args.openEvBook?.call(),
+                    ),
+                    actionPill(
+                      const Key('quick-vehicle'),
+                      'Kendaraan',
+                      Icons.directions_car_outlined,
+                      () => edit(),
+                    ),
+                    actionPill(
+                      const Key('quick-topup'),
+                      'Top Up',
+                      Icons.add_card_rounded,
+                      () => widget.args.navigate(2),
+                    ),
+                    actionPill(
+                      const Key('quick-qr'),
+                      'QR Bayar',
+                      Icons.qr_code_scanner_rounded,
+                      () => widget.args.openQrPay?.call(),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 24),
+          Expanded(
+            flex: 4,
+            child: Material(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(20),
+              child: InkWell(
+                key: const Key('home-wallet-card'),
+                borderRadius: BorderRadius.circular(20),
+                onTap: () => widget.args.navigate(2),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: primary.withValues(alpha: 0.14),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              Icons.account_balance_wallet_rounded,
+                              color: primary,
+                              size: 22,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Dompet QPark',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                                Text(
+                                  'E-Wallet Prototipe',
+                                  style: TextStyle(
+                                    color: AppColors.muted,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(Icons.chevron_right_rounded, color: primary),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Saldo tersedia',
+                        style: TextStyle(color: AppColors.muted, fontSize: 12),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        money(service.walletBalance),
+                        key: const Key('home-wallet-balance'),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 24,
+                          color: primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _desktopLocationsGrid(BuildContext context, RemoteService service) {
+    final locs = service.locations;
+    if (locs.isEmpty) return const SizedBox.shrink();
+    final primary = Theme.of(context).colorScheme.primary;
+    final selectedId =
+        service.selectedLocationId ??
+        (service.capacity?['location'] as Map?)?['id'] as String? ??
+        locs.first['id'] as String?;
+
+    return Column(
+      key: const Key('availability-slider'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Ketersediaan Parkir & EV',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+              ),
+            ),
+            Text(
+              '${locs.length} lokasi aktif',
+              style: const TextStyle(color: AppColors.muted, fontSize: 13),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        LayoutBuilder(
+          builder: (context, c) {
+            final cols = c.maxWidth >= 540 ? 2 : 1;
+            const gap = 14.0;
+            final cardW = (c.maxWidth - gap * (cols - 1)) / cols;
+            return Wrap(
+              spacing: gap,
+              runSpacing: gap,
+              children: locs.map((loc) {
+                final isSelected = loc['id'] == selectedId;
+                final cats = loc['categories'] as Map?;
+                final carAvail =
+                    (cats?['MOBIL']?['available'] as num?)?.toInt() ?? 0;
+                final carTotal =
+                    (cats?['MOBIL']?['total'] as num?)?.toInt() ?? 0;
+                final motorAvail =
+                    (cats?['MOTOR']?['available'] as num?)?.toInt() ?? 0;
+                final motorTotal =
+                    (cats?['MOTOR']?['total'] as num?)?.toInt() ?? 0;
+                final ev = loc['ev'] as Map?;
+                final evAvail = (ev?['available'] as num?)?.toInt() ?? 0;
+                final evTotal = (ev?['total'] as num?)?.toInt() ?? 0;
+
+                return SizedBox(
+                  width: cardW,
+                  child: Material(
+                    color: Theme.of(context).colorScheme.surface,
+                    borderRadius: BorderRadius.circular(18),
+                    clipBehavior: Clip.antiAlias,
+                    child: InkWell(
+                      key: Key('location-card-${loc['id']}'),
+                      onTap: () => service.selectLocation(loc['id'] as String),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: isSelected
+                                ? primary
+                                : Theme.of(context).dividerColor,
+                            width: isSelected ? 2 : 1,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 10,
+                              ),
+                              color: isSelected
+                                  ? primary
+                                  : primary.withValues(alpha: 0.10),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.location_on_rounded,
+                                    size: 16,
+                                    color: isSelected ? Colors.white : primary,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      loc['name'] as String? ?? 'Lokasi QPark',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: isSelected
+                                            ? Colors.white
+                                            : Theme.of(
+                                                context,
+                                              ).colorScheme.onSurface,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    isSelected ? 'DIPILIH' : 'LIVE',
+                                    style: TextStyle(
+                                      color: isSelected
+                                          ? Colors.white
+                                          : primary,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.all(14),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if ((loc['address'] as String? ?? '')
+                                      .isNotEmpty)
+                                    Text(
+                                      loc['address'] as String,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: AppColors.muted,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  const SizedBox(height: 10),
+                                  Row(
+                                    children: [
+                                      _slotChip(
+                                        Icons.directions_car,
+                                        'Mobil',
+                                        '$carAvail/$carTotal',
+                                        primary,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      _slotChip(
+                                        Icons.two_wheeler,
+                                        'Motor',
+                                        '$motorAvail/$motorTotal',
+                                        primary,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      _slotChip(
+                                        Icons.ev_station_rounded,
+                                        'EV Charge',
+                                        '$evAvail/$evTotal',
+                                        const Color(0xFF0284C7),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: TextButton.icon(
+                                      style: TextButton.styleFrom(
+                                        minimumSize: const Size(0, 34),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                        ),
+                                      ),
+                                      onPressed: () => widget.args.openEvBook
+                                          ?.call(loc['id'] as String),
+                                      icon: const Icon(
+                                        Icons.bolt_rounded,
+                                        size: 16,
+                                      ),
+                                      label: const Text(
+                                        'Book EV di sini',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _desktopPromosGrid(BuildContext context, RemoteService service) {
+    final promos = service.promos;
+    final primary = Theme.of(context).colorScheme.primary;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Promo Parkir Aktif',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+              ),
+            ),
+            Text(
+              '${promos.length} promo berlaku',
+              style: const TextStyle(color: AppColors.muted, fontSize: 13),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (promos.isEmpty)
+          const SurfaceCard(
+            child: EmptyState(
+              title: 'Belum ada promo aktif',
+              description:
+                  'Promo terbatas dari pengelola lokasi parkir akan tampil otomatis di sini.',
+            ),
+          )
+        else
+          LayoutBuilder(
+            builder: (context, c) {
+              final cols = c.maxWidth >= 540 ? 2 : 1;
+              const gap = 14.0;
+              final cardW = (c.maxWidth - gap * (cols - 1)) / cols;
+              return Wrap(
+                key: const Key('home-promos-list'),
+                spacing: gap,
+                runSpacing: gap,
+                children: promos.map((p) {
+                  final isPct = p['discount_type'] == 'PERCENT';
+                  final badge = isPct
+                      ? 'DISKON ${p['discount_value']}%'
+                      : 'HEMAT ${money((p['discount_value'] as num?)?.toInt())}';
+                  return SizedBox(
+                    width: cardW,
+                    child: Material(
+                      color: Theme.of(context).colorScheme.surface,
+                      borderRadius: BorderRadius.circular(18),
+                      clipBehavior: Clip.antiAlias,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: Theme.of(context).dividerColor,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                14,
+                                12,
+                                14,
+                                10,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 3,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: primary,
+                                          borderRadius: BorderRadius.circular(
+                                            999,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          badge,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          p['location_name'] as String? ??
+                                              'QPark',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          textAlign: TextAlign.right,
+                                          style: TextStyle(
+                                            color: primary,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    p['title'] as String? ?? 'Promo QPark',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    p['description'] as String? ?? '',
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: AppColors.muted,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              color: primary.withValues(alpha: 0.10),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 8,
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.schedule_rounded,
+                                    size: 14,
+                                    color: primary,
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Expanded(
+                                    child: Text(
+                                      's/d ${wib(p['ends_at'])}',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: primary,
+                                      ),
+                                    ),
+                                  ),
+                                  if ((p['code'] as String? ?? '').isNotEmpty)
+                                    Text(
+                                      p['code'] as String,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w900,
+                                        color: primary,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+          ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final service = widget.args.service;
@@ -961,70 +1595,223 @@ class _DriverPageState extends State<DriverPage> {
       }
     }
 
-    return LayoutBuilder(
-      builder: (context, bounds) {
-        final wide = bounds.maxWidth >= 960;
-        final overview = Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _availabilityAutoSlider(context, service),
-            const SizedBox(height: 20),
-            _promosSection(context, service),
-            const SizedBox(height: 20),
-            SurfaceCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
+    Widget statusCard() => SurfaceCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.local_parking_rounded,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  status.title,
+                  key: const Key('customer-status'),
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            status.description,
+            style: const TextStyle(color: AppColors.muted),
+          ),
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            key: const Key('customer-primary'),
+            onPressed:
+                service.retrying ||
+                    (status.action == CustomerAction.refresh && service.syncing)
+                ? null
+                : primaryAction,
+            icon: Icon(
+              status.action == CustomerAction.exitQr
+                  ? Icons.qr_code
+                  : Icons.arrow_forward,
+            ),
+            label: Text(status.label),
+          ),
+          if (service.ticket != null)
+            TextButton.icon(
+              onPressed: openDetails,
+              icon: const Icon(Icons.receipt_long_outlined),
+              label: const Text('Rincian tiket & biaya'),
+            ),
+        ],
+      ),
+    );
+
+    Widget myVehiclesCard() => SurfaceCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          PageHeading(
+            'Kendaraan saya',
+            service.customerIdentity == null
+                ? 'Pilih kendaraan yang sedang Anda gunakan.'
+                : 'Kendaraan tersimpan pada akun Anda.',
+            action: OutlinedButton.icon(
+              key: const Key('vehicle-add'),
+              onPressed: () => edit(),
+              icon: const Icon(Icons.add),
+              label: const Text('Tambah'),
+            ),
+          ),
+          if (service.plates.isEmpty)
+            const EmptyState(
+              title: 'Tambahkan nopol kendaraan',
+              description:
+                  'Ketuk Tambah, lalu isi nopol. Centang plat biru untuk EV Charging.',
+            ),
+          ...service.plates.map((p) {
+            final isEv = service.evPlates[p] == true;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Material(
+                color: service.selected == p
+                    ? Theme.of(
+                        context,
+                      ).colorScheme.primary.withValues(alpha: 0.12)
+                    : Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(12),
+                child: ListTile(
+                  onTap: () => service.selectPlate(p),
+                  leading: Icon(
+                    service.selected == p
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_unchecked,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  title: Row(
                     children: [
-                      Icon(
-                        Icons.local_parking_rounded,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
+                      Flexible(
                         child: Text(
-                          status.title,
-                          key: const Key('customer-status'),
-                          style: Theme.of(context).textTheme.titleLarge,
+                          p,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w700),
                         ),
                       ),
+                      if (isEv) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1D4ED8),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            'PLAT BIRU',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
-                  const SizedBox(height: 10),
-                  Text(
-                    status.description,
-                    style: const TextStyle(color: AppColors.muted),
+                  trailing: PopupMenuButton<String>(
+                    onSelected: (v) async {
+                      if (v == 'edit') {
+                        await edit(p);
+                        return;
+                      }
+                      if (await confirm(
+                        context,
+                        title: 'Hapus nopol tersimpan?',
+                        body:
+                            'Sesi parkir dan tagihan tetap ada. Hanya pilihan pada perangkat ini yang dihapus.',
+                        action: 'Hapus',
+                      )) {
+                        try {
+                          await service.removePlate(p);
+                        } catch (e) {
+                          if (context.mounted) {
+                            remoteError(context, e);
+                          }
+                        }
+                      }
+                    },
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(value: 'edit', child: Text('Edit')),
+                      PopupMenuItem(value: 'delete', child: Text('Hapus')),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                  FilledButton.icon(
-                    key: const Key('customer-primary'),
-                    onPressed:
-                        service.retrying ||
-                            (status.action == CustomerAction.refresh &&
-                                service.syncing)
-                        ? null
-                        : primaryAction,
-                    icon: Icon(
-                      status.action == CustomerAction.exitQr
-                          ? Icons.qr_code
-                          : Icons.arrow_forward,
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+
+    return LayoutBuilder(
+      builder: (context, bounds) {
+        final wide = bounds.maxWidth >= 900;
+        if (wide) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _desktopHeroBanner(context, service),
+              const SizedBox(height: 24),
+              if (service.plates.isNotEmpty) ...[
+                VehicleGallery(service: service, onDetails: openDetails),
+                const SizedBox(height: 20),
+              ],
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 7,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _desktopLocationsGrid(context, service),
+                        const SizedBox(height: 24),
+                        _desktopPromosGrid(context, service),
+                        const SizedBox(height: 24),
+                        myVehiclesCard(),
+                      ],
                     ),
-                    label: Text(status.label),
                   ),
-                  if (service.ticket != null)
-                    TextButton.icon(
-                      onPressed: openDetails,
-                      icon: const Icon(Icons.receipt_long_outlined),
-                      label: const Text('Rincian tiket & biaya'),
+                  const SizedBox(width: 24),
+                  Expanded(
+                    flex: 5,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        statusCard(),
+                        const SizedBox(height: 20),
+                        if (service.selected != null) ...[
+                          SurfaceCard(
+                            key: const Key('desktop-ticket-panel'),
+                            child: CustomerTicketDetails(
+                              args: widget.args,
+                              active: widget.active,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                        ],
+                        CapacityCard(service),
+                      ],
                     ),
+                  ),
                 ],
               ),
-            ),
-          ],
-        );
+              const SizedBox(height: 24),
+            ],
+          );
+        }
 
-        final bodyContent = Padding(
+        final mobileContent = Padding(
           padding: EdgeInsets.symmetric(horizontal: widget.fullBleed ? 16 : 0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1035,141 +1822,13 @@ class _DriverPageState extends State<DriverPage> {
                 VehicleGallery(service: service, onDetails: openDetails),
                 const SizedBox(height: 18),
               ],
-              if (wide && service.selected != null)
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(child: overview),
-                    const SizedBox(width: 24),
-                    Expanded(
-                      child: SurfaceCard(
-                        key: const Key('desktop-ticket-panel'),
-                        child: CustomerTicketDetails(
-                          args: widget.args,
-                          active: widget.active,
-                        ),
-                      ),
-                    ),
-                  ],
-                )
-              else
-                overview,
+              _availabilityAutoSlider(context, service),
               const SizedBox(height: 20),
-              SurfaceCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    PageHeading(
-                      'Kendaraan saya',
-                      service.customerIdentity == null
-                          ? 'Pilih kendaraan yang sedang Anda gunakan.'
-                          : 'Kendaraan tersimpan pada akun Anda.',
-                      action: OutlinedButton.icon(
-                        key: const Key('vehicle-add'),
-                        onPressed: () => edit(),
-                        icon: const Icon(Icons.add),
-                        label: const Text('Tambah'),
-                      ),
-                    ),
-                    if (service.plates.isEmpty)
-                      const EmptyState(
-                        title: 'Tambahkan nopol kendaraan',
-                        description:
-                            'Ketuk Tambah, lalu isi nopol. Centang plat biru untuk EV Charging.',
-                      ),
-                    ...service.plates.map((p) {
-                      final isEv = service.evPlates[p] == true;
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Material(
-                          color: service.selected == p
-                              ? Theme.of(
-                                  context,
-                                ).colorScheme.primary.withValues(alpha: 0.12)
-                              : Theme.of(context).colorScheme.surface,
-                          borderRadius: BorderRadius.circular(12),
-                          child: ListTile(
-                            onTap: () => service.selectPlate(p),
-                            leading: Icon(
-                              service.selected == p
-                                  ? Icons.radio_button_checked
-                                  : Icons.radio_button_unchecked,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                            title: Row(
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    p,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ),
-                                if (isEv) ...[
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF1D4ED8),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: const Text(
-                                      'PLAT BIRU',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                            trailing: PopupMenuButton<String>(
-                              onSelected: (v) async {
-                                if (v == 'edit') {
-                                  await edit(p);
-                                  return;
-                                }
-                                if (await confirm(
-                                  context,
-                                  title: 'Hapus nopol tersimpan?',
-                                  body:
-                                      'Sesi parkir dan tagihan tetap ada. Hanya pilihan pada perangkat ini yang dihapus.',
-                                  action: 'Hapus',
-                                )) {
-                                  try {
-                                    await service.removePlate(p);
-                                  } catch (e) {
-                                    if (context.mounted) {
-                                      remoteError(context, e);
-                                    }
-                                  }
-                                }
-                              },
-                              itemBuilder: (_) => const [
-                                PopupMenuItem(
-                                  value: 'edit',
-                                  child: Text('Edit'),
-                                ),
-                                PopupMenuItem(
-                                  value: 'delete',
-                                  child: Text('Hapus'),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    }),
-                  ],
-                ),
-              ),
+              _promosSection(context, service),
+              const SizedBox(height: 20),
+              statusCard(),
+              const SizedBox(height: 20),
+              myVehiclesCard(),
               const SizedBox(height: 24),
             ],
           ),
@@ -1180,7 +1839,7 @@ class _DriverPageState extends State<DriverPage> {
           children: [
             _heroHeader(context, service),
             const SizedBox(height: 40),
-            bodyContent,
+            mobileContent,
           ],
         );
       },
